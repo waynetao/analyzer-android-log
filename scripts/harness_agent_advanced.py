@@ -26,7 +26,9 @@ from harness.skills.case_library_skill import CaseLibrarySkill
 
 # 导入Bug描述解析
 import sys
-sys.path.insert(0, '/workspace')
+# 添加项目根目录到路径（支持任意位置运行）
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 class AdvancedAndroidLogAgent:

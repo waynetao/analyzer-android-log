@@ -5,7 +5,8 @@ import argparse
 import yaml
 import os
 import sys
-sys.path.insert(0, '/workspace')
+# 添加项目根目录到路径（支持任意位置运行）
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from harness.core.feature_flags import FeatureSDK, FeatureFlag
 

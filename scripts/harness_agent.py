@@ -16,7 +16,9 @@ from harness.policies import ValidationPolicy, QualityPolicy, FormatPolicy
 
 # 导入Bug描述解析
 import sys
-sys.path.insert(0, '/workspace')
+# 添加项目根目录到路径（支持任意位置运行）
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from log_analyzer.llm.bug_description_parser import BugDescriptionParser
 from log_analyzer.llm.llm_client import LLMClient
 
