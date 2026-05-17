@@ -1,0 +1,52 @@
+# 知识库元数据配置
+# 版本: v1.0
+# 最后更新: 2026-05-17
+
+name: "Android Knowledge Base"
+description: "Android 日志分析知识库 - 包含 Event Log Tags、ANR/Tombstone、dumpsys、GC 日志、系统属性等知识"
+version: "1.0.0"
+author: "Harness Agent Team"
+created_at: "2026-05-17"
+updated_at: "2026-05-17"
+
+# 知识域配置
+domains:
+  - id: "event_log_tags"
+    name: "Event Log Tags"
+    description: "Android 系统 Event Log Tags 的完整定义"
+    status: "active"
+  
+  - id: "anr_tombstone"
+    name: "ANR/Tombstone"
+    description: "ANR 和 Tombstone 日志格式说明与根因分析"
+    status: "active"
+  
+  - id: "dumpsys"
+    name: "dumpsys"
+    description: "dumpsys 关键服务输出文档和 SOP"
+    status: "active"
+  
+  - id: "sysprops"
+    name: "系统属性"
+    description: "Android 系统属性关键项定义"
+    status: "active"
+  
+  - id: "gc_logs"
+    name: "GC 日志"
+    description: "GC 日志格式说明和解析指南"
+    status: "active"
+
+# 文档统计
+statistics:
+  total_documents: 21
+  total_words: 0
+  last_indexed: ""
+
+# 版本历史
+history:
+  - version: "1.0.0"
+    date: "2026-05-17"
+    changes:
+      - "初始版本创建"
+      - "创建所有知识域的 demo 模板"
+      - "建立文档结构规范"

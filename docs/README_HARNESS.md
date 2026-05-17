@@ -1,0 +1,211 @@
+# Android 日志分析 AI Agent - Harness Engineering 架构
+
+## 🚀 概述
+
+这是一个完全符合 **OpenAI Harness Engineering** 最佳实践的 Android 日志分析 AI Agent。它实现了完整的 **Plan-Build-Verify-Fix** 工作流，采用可插拔的三层架构，支持多种输出格式的场景化报告，并集成了 LLM 多阶段智能分析和日志证据匹配功能。
+
+## 📋 核心特性
+
+### 🏗️ Harness 架构
+
+- **Core Layer**: StateManager, ContextEngine, Orchestrator - 不变的核心系统
+- **Skills Layer**: LogExtraction, AdvancedAnalysis, LLMAnalysis, EvidenceMatching, Timeline, ReportGeneration - 可插拔的技能模块
+- **Policies Layer**: Validation, Quality, Format - 约束和验证策略
+
+### 🔄 Plan-Build-Verify-Fix 工作流
+
+1. **Plan**: 验证输入，规划任务
+2. **Build**: 执行技能链，处理数据
+3. **Verify**: 应用策略检查输出
+4. **Fix**: 自动修复（可扩展）
+
+### 📊 多种报告格式
+
+- Markdown (默认)
+- HTML (响应式，带可视化)
+- JSON (机器可读)
+
+### 🎯 日志证据匹配 (最新功能!)
+
+- **置信度评分**: 量化分析结果的可信度
+- **用户现象与日志对照**: 验证用户描述的问题是否在日志中存在对应证据
+- **场景变化追踪**: 记录设备状态在问题发生前后的变化
+- **事件时间线**: 完整重构问题发生的时间顺序
+- **"我们在日志中看到了什么"和"发生了什么"**: 清晰解释日志内容和事件过程
+
+## 📁 项目结构
+
+```
+/workspace/
+├── AGENTS.md                   # AI Agent 导航地图
+├── harness_agent.py            # 基础版 Agent
+├── harness_agent_advanced.py   # 高级版 Agent (推荐使用!)
+├── harness/
+│   ├── core/                  # 核心层
+│   │   ├── context.py         # 上下文引擎
+│   │   ├── state.py           # 状态管理
+│   │   └── orchestrator.py    # 协调器
+│   ├── skills/                # 技能层
+│   │   ├── base.py
+│   │   ├── log_extraction.py
+│   │   ├── log_analysis_advanced.py  # 高级日志分析
+│   │   ├── llm_analysis.py    # LLM智能分析
+│   │   ├── log_evidence_matcher.py  # 日志证据匹配 (新!)
+│   │   └── report.py          # 报告生成
+│   └── policies/              # 策略层
+│       ├── base.py
+│       ├── validation.py
+│       ├── quality.py
+│       └── format.py
+├── config/
+│   └── report_formats.yaml    # 报告格式配置
+├── outputs/
+│   ├── reports/               # 生成的报告
+│   └── state/                 # 工作流状态
+└── log_analyzer/             # 原始分析模块
+```
+
+## 🎯 快速开始
+
+### 安装依赖
+
+```bash
+pip install pyyaml
+```
+
+### 运行高级版分析 (推荐)
+
+```bash
+# 基础使用
+python harness_agent_advanced.py --bug "应用崩溃" --log test_log.txt
+
+# 使用bug描述文件
+python harness_agent_advanced.py --bug sample_bug.txt --log test_log.txt
+
+# 生成多种格式的报告
+python harness_agent_advanced.py --bug sample_bug.txt --log test_log.txt --format all
+```
+
+### 测试日志证据匹配功能
+
+```bash
+# 运行证据匹配测试
+python test_evidence_matching.py
+```
+
+## 📖 Harness Engineering 原则
+
+### 1️⃣ 上下文工程 (Context Engineering)
+
+- **地图而非百科全书**: AGENTS.md 作为导航
+- **按需加载**: 相关信息仅在需要时获取
+- **熵治理**: 限制状态大小，防止信息过载
+
+### 2️⃣ 架构约束 (Architectural Constraints)
+
+- **分层架构**: Core → Skills → Policies，单向依赖
+- **可插拔**: 技能和策略可以独立替换
+- **机械执行**: 约束通过代码强制实施
+
+### 3️⃣ 自验证循环 (Self-Validation Loop)
+
+- **Plan-Build-Verify-Fix**: 每个阶段都有检查
+- **Policy-driven**: 验证由策略模块执行
+- **可追踪**: 状态持久化，支持审计
+
+## 🎓 扩展开发
+
+### 添加新技能
+
+```python
+from harness.skills.base import BaseSkill, SkillResult
+
+class MyNewSkill(BaseSkill):
+    @property
+    def name(self):
+        return "my_new_skill"
+    
+    def execute(self, inputs):
+        # 实现你的逻辑
+        return SkillResult(True, {"data": "..."}, "成功")
+```
+
+### 添加新策略
+
+```python
+from harness.policies.base import BasePolicy, ValidationResult
+
+class MyPolicy(BasePolicy):
+    @property
+    def name(self):
+        return "my_policy"
+    
+    def validate_output(self, outputs):
+        return ValidationResult(True, "通过")
+```
+
+## 📊 示例输出
+
+### 高级版执行过程 (包含证据匹配)
+
+```
+============================================================
+Android 日志分析 AI Agent - 高级版 (Harness Engineering)
+============================================================
+✅ 技能已注册: log_extraction
+✅ 技能已注册: advanced_log_analysis
+✅ 技能已注册: llm_analysis
+✅ 技能已注册: log_evidence_matcher
+✅ 技能已注册: timeline_builder
+✅ 技能已注册: report_generation
+📋 策略已加载: validation
+📋 策略已加载: quality
+📋 策略已加载: format
+
+📝 解析bug描述...
+
+🚀 启动Harness工作流...
+
+🚀 开始执行工作流: bug_analysis_advanced
+   工作流ID: bug_analysis_20260516_205300_ca1b4529
+
+📋 === 阶段 1/4: PLAN (规划) ===
+   ✓ 输入验证完成
+
+🔨 === 阶段 2/4: BUILD (构建) ===
+
+   执行技能: log_extraction
+   ✓ 技能 log_extraction 执行完成: 成功提取并解析 59 条日志
+
+   执行技能: advanced_log_analysis
+   ✓ 技能 advanced_log_analysis 执行完成: 高级分析完成: 提取了 5 条关键日志
+
+   执行技能: llm_analysis
+   ✓ 技能 llm_analysis 执行完成: LLM分析完成
+
+   执行技能: log_evidence_matcher
+   ✓ 技能 log_evidence_matcher 执行完成: 日志证据匹配完成，置信度 92%
+
+   执行技能: timeline_builder
+   ✓ 技能 timeline_builder 执行完成: 时间线构建完成
+
+   执行技能: report_generation
+   ✓ 技能 report_generation 执行完成: 成功生成报告: ...
+
+🔍 === 阶段 3/4: VERIFY (验证) ===
+   ✅ validation: 输出验证通过
+   ✅ quality: 发现 25 个问题，建议优先修复
+   ✅ format: 格式验证通过
+
+✅ 工作流执行成功!
+```
+
+## 📝 参考资料
+
+- OpenAI Harness Engineering 官方博客
+- Anthropic Effective Harnesses for Long-Running Agents
+- Martin Fowler on AI Engineering Practices
+
+## 📄 许可证
+
+MIT License

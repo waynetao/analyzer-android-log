@@ -1,0 +1,21 @@
+version: '3.8'
+services:
+  qmd-server:
+    image: qmd/qmd-server:latest
+    container_name: qmd-server
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./knowledge_base:/app/knowledge_base
+      - ./knowledge_base/config/qmd_config.yaml:/app/config/config.yaml
+      - ./data:/app/data
+    environment:
+      - QMD_CONFIG=/app/config/config.yaml
+      - QMD_LOG_LEVEL=info
+    restart: unless-stopped
+    networks:
+      - harness-network
+
+networks:
+  harness-network:
+    driver: bridge

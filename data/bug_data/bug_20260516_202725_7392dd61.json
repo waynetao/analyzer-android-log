@@ -1,0 +1,34 @@
+{
+  "bug_id": "bug_20260516_202725_7392dd61",
+  "created_at": "2026-05-16T20:27:25.098599",
+  "bug_description": {
+    "raw_text": "# Bug 描述\n\n## 问题摘要\n应用在打开主页面时崩溃\n\n## 详细描述\n我们的应用在用户点击图标启动后，打开主页面（MainActivity）时会立即崩溃。这个问题在 Pixel 6 设备上，运行 Android 13 系统时特别明显。版本号是 1.0.0。\n\n## 复现步骤\n1. 点击应用图标启动应用\n2. 等待主页面加载\n3. 应用崩溃，显示 \"Unfortunately, App has stopped\"\n\n## 发生时间\n大约在 11:25 到 11:30 之间，已经多次复现\n\n## 设备信息\n- 设备: Pixel 6\n- Android 版本: 13\n- 应用版本: 1.0.0\n- 包名: com.example.app\n\n## 预期行为\n应用应该正常启动并显示主页面的内容\n\n## 实际行为\n应用在启动过程中崩溃\n\n## 频率\n每次启动都会发生，100% 复现\n",
+    "summary": "# Bug 描述",
+    "package_name": "com.example.app",
+    "app_version": "13",
+    "android_version": "13",
+    "device_model": "Pixel 6",
+    "time_points": [
+      "11:25",
+      "11:30"
+    ],
+    "reproduction_steps": [],
+    "keywords": [
+      "崩溃",
+      "启动"
+    ],
+    "user_scenarios": [],
+    "expected_behavior": null,
+    "actual_behavior": null,
+    "frequency": null
+  },
+  "log_metadata": {},
+  "analysis_results": {
+    "crashes": 0,
+    "anrs": 0,
+    "low_memory": 0,
+    "exceptions": 0,
+    "other_issues": 0
+  },
+  "final_report": "模拟响应"
+}

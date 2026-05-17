@@ -1,0 +1,25 @@
+============================================================
+ANDROID 日志分析报告
+============================================================
+
+【崩溃信息】(7)
+[03-29 11:25:32.894092] [I] [am_crash] (PID:939) [9337,0,com.example.app,954744388,java.lang.NullPointerException,Attempt to invoke virtual method 'void android.view.View.setVisibility(int)' on a null object reference,MainActivity.java,36]
+[03-29 11:25:32.910190] [I] [am_finish_activity] (PID:939) [0,198242511,14,com.example.app/.MainActivity,force-crash]
+[03-29 11:28:00.123456] [E] [AndroidRuntime] (PID:5678) FATAL EXCEPTION: main
+[03-29 11:28:00.234567] [E] [AndroidRuntime] (PID:5678) Process: com.example.app, PID: 5678
+[03-29 11:28:00.345678] [E] [AndroidRuntime] (PID:5678) java.lang.RuntimeException: Unable to start activity ComponentInfo{com.example.app/.MainActivity}: java.lang.IndexOutOfBoundsException: Index: 0, Size: 0
+[03-29 11:28:00.456789] [E] [AndroidRuntime] (PID:5678) at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:3639)
+[03-29 11:28:00.567890] [E] [AndroidRuntime] (PID:5678) at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:3796)
+
+【ANR信息】(1)
+[03-29 11:27:05.123456] [E] [ActivityManager] (PID:939) ANR in com.example.app (com.example.app/.MainActivity)
+
+【低内存信息】(1)
+[03-29 11:26:00.123456] [I] [am_low_memory] (PID:939) 19
+
+【异常信息】(0)
+
+【其他问题】(1)
+[03-29 11:27:00.123456] [W] [ActivityManager] (PID:939) Activity idle timeout for HistoryRecord{1234567 com.example.app/.MainActivity}
+
+============================================================

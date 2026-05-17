@@ -1,0 +1,45 @@
+# QMD Server 配置文件
+# 版本: v1.0
+# 适用: QMD MCP Server
+
+server:
+  host: 0.0.0.0
+  port: 8000
+  log_level: info
+
+index:
+  paths:
+    - name: android_knowledge
+      path: ./knowledge_base/android_knowledge
+      pattern: "**/*.md"
+      ignore:
+        - "**/_index.md"
+  
+  indexing:
+    enabled: true
+    schedule: "0 2 * * *"
+    chunk_size: 512
+    chunk_overlap: 64
+
+search:
+  default_mode: vsearch
+  top_k: 5
+  rerank:
+    enabled: true
+    model: cross-encoder/ms-marco-MiniLM-L-6-v2
+  hybrid:
+    enabled: true
+    bm25_weight: 0.3
+    vector_weight: 0.7
+
+embeddings:
+  model: all-MiniLM-L6-v2
+  device: cpu
+  batch_size: 32
+
+storage:
+  type: sqlite
+  path: ./data/qmd.db
+  backup:
+    enabled: true
+    schedule: "0 3 * * *"

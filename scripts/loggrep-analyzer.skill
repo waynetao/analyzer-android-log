@@ -1,0 +1,179 @@
+---
+name: loggrep-analyzer
+description: Analyze Android logcat/xlog logs with structured output. Use when user asks to analyze, filter, or search Android logs. Triggers on keywords like "logcat", "Android log", "xlog", "hilog", "app crash", "ANR", "error analysis".
+---
+
+# Loggrep Analyzer Skill
+
+Expert skill for analyzing Android application logs using the aloggrep CLI tool.
+
+## When to Use This Skill
+
+Use this skill when the user wants to:
+- Analyze Android application logs
+- Search for specific errors or patterns in logs
+- Extract crash information
+- Filter logs by time, tag, level, or message content
+- Get statistics and summaries of log files
+
+Trigger keywords: "logcat", "Android log", "xlog", "hilog", "app crash", "ANR", "error analysis", "log analysis", "filter logs"
+
+## How to Use
+
+### Installation
+
+The aloggrep CLI should be pre-installed. If not:
+
+```bash
+cargo install aloggrep
+```
+
+This provides two commands:
+- `aloggrep` (full name)
+- `alg` (short alias, same functionality)
+
+### Basic Usage
+
+#### Quick Analysis
+
+```bash
+# Get overall summary (level distribution, top tags/errors, crash count)
+alg -f app.log --summary
+
+# Extract crashes
+alg -f app.log --crashes
+
+# Check for errors in specific time window
+alg -f app.log --since 10:30:00 --until 10:35:00 --level E
+```
+
+#### Filtering
+
+```bash
+# Filter by tag and level
+alg -f app.log --tag "MyApp" --level W
+
+# Multiple tags (OR logic by default)
+alg -f app.log --tag "OkHttp" --tag "Retrofit"
+
+# Multiple tags with AND
+alg -f app.log --tag "OkHttp" --tag "Network" --and
+
+# Boolean expressions
+alg -f app.log -e 'msg ~ timeout and tag ~ OkHttp'
+```
+
+#### Context
+
+```bash
+# Get context lines around matches
+alg -f app.log --tag crash -C 3
+
+# Time-based context
+alg -f app.log --level F --time-context 5s
+```
+
+### Advanced Features
+
+#### Analysis Tools
+
+```bash
+# Histogram with anomaly detection
+alg -f app.log --histogram 1m
+
+# Deduplicate similar messages
+alg -f app.log --dedupe --limit 20
+
+# Multi-line merge for stack traces
+alg -f app.log -M --tag AndroidRuntime
+```
+
+#### Output Control
+
+```bash
+# JSON output for structured data
+alg -f app.log --format json --limit 50
+
+# CSV export
+alg -f app.log --format csv > out.csv
+
+# Field selection to reduce token usage
+alg -f app.log --fields timestamp,level,tag,msg --limit 100
+
+# Count only
+alg -f app.log --tag Error --count
+```
+
+### Four-Phase Analysis Workflow
+
+When analyzing a complete log file:
+
+1. **Global Overview**: Get summary statistics first
+   ```bash
+   alg -f app.log --summary
+   ```
+
+2. **Locate Problem Areas**: Filter to problematic entries
+   ```bash
+   alg -f app.log --level W
+   ```
+
+3. **Deep Dive**: Extract specific issues with context
+   ```bash
+   alg -f app.log --crashes
+   alg -f app.log --tag specific_error -C 5
+   ```
+
+4. **Structured Report**: Generate findings
+   - Compile crash information
+   - Note error distribution by time
+   - Identify patterns in repeated errors
+
+## Supported Log Formats
+
+aloggrep automatically detects and parses:
+- **threadtime**: `03-04 10:23:28.872 3542 3831 I NTKernel: msg`
+- **xlog**: `2026-03-04 10:23:28.872|1[3542]3831|3542|I|NTKernel|msg`
+- **brief**: `I/NTKernel(3542): msg`
+- **hilog**: `04-16 11:52:56.297 11114 11114 I A00201/com.tencent.mqq/QRouter: msg`
+
+## Exit Codes
+
+- `0`: Matches found
+- `1`: No matches
+- `2`: Invalid arguments
+
+## Tips
+
+- Use `--format json` when you need structured output for further processing
+- Use `--fields` to limit output and reduce token consumption
+- Use `-e` for complex cross-field filtering
+- Use `--time-context` instead of `-C` when you need time-based context
+- The `--histogram` command includes automatic anomaly detection (mean + 2σ)
+
+## Common Use Cases
+
+### Crash Analysis
+```bash
+alg -f app.log --crashes
+```
+
+### Error Distribution
+```bash
+alg -f app.log --level E --histogram 5m
+```
+
+### Specific Tag Investigation
+```bash
+alg -f app.log --tag "MyActivity" --level W -C 3
+```
+
+### Time Window Analysis
+```bash
+alg -f app.log --since '2026-03-04 10:30:00' --until '2026-03-04 10:35:00'
+```
+
+### Duplicate Issue Detection
+```bash
+alg -f app.log --level E --dedupe --limit 10
+```

@@ -1,0 +1,62 @@
+# 场景化分析报告配置 - Harness Engineering
+# 支持多种输出格式，可插拔配置
+version: "1.0.0"
+
+formats:
+  markdown:
+    name: "Markdown Report"
+    extension: ".md"
+    enabled: true
+    template: "markdown"
+    features:
+      - table_of_contents
+      - code_blocks
+      - images
+      - links
+
+  html:
+    name: "HTML Report"
+    extension: ".html"
+    enabled: true
+    template: "html"
+    features:
+      - responsive_design
+      - interactive_charts
+      - collapsible_sections
+
+  json:
+    name: "JSON Report"
+    extension: ".json"
+    enabled: true
+    template: "json"
+    features:
+      - machine_readable
+      - schema_validation
+
+  pdf:
+    name: "PDF Report"
+    extension: ".pdf"
+    enabled: false
+    template: "html"  # 通过HTML转换
+    features:
+      - print_optimized
+
+report_sections:
+  - name: "summary"
+    title: "问题概览"
+    required: true
+  - name: "environment"
+    title: "环境信息"
+    required: true
+  - name: "analysis"
+    title: "分析结果"
+    required: true
+  - name: "findings"
+    title: "关键发现"
+    required: true
+  - name: "recommendations"
+    title: "修复建议"
+    required: true
+  - name: "appendix"
+    title: "附录"
+    required: false

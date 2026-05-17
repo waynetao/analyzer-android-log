@@ -1,0 +1,170 @@
+flags:
+  aloggrep_integration:
+    created_at: '2026-05-17T03:34:08.121265'
+    default_value: null
+    description: 是否启用 aloggrep 集成
+    enabled: true
+    environments:
+    - dev
+    - prod
+    flag_type: boolean
+    name: aloggrep_integration
+    percentage_rollout: 100
+    targeting_rules: []
+    updated_at: '2026-05-17T03:34:29.010930'
+    variants: {}
+  analysis_mode:
+    created_at: '2026-05-17T03:34:08.121291'
+    default_value: standard
+    description: 分析模式：fast/standard/deep
+    enabled: true
+    environments:
+    - dev
+    - prod
+    flag_type: multivariate
+    name: analysis_mode
+    percentage_rollout: 100
+    targeting_rules: []
+    updated_at: '2026-05-17T03:35:18.644119'
+    variants:
+      deep:
+        description: 深度分析
+        value: deep
+      fast:
+        description: 快速分析
+        value: fast
+      standard:
+        description: 标准分析
+        value: standard
+  evidence_matching_enabled:
+    created_at: '2026-05-17T03:34:08.121298'
+    default_value: null
+    description: 是否启用日志证据匹配
+    enabled: true
+    environments:
+    - dev
+    - prod
+    flag_type: boolean
+    name: evidence_matching_enabled
+    percentage_rollout: 100
+    targeting_rules: []
+    updated_at: '2026-05-17T03:34:08.121298'
+    variants: {}
+  knowledge_base_enabled:
+    created_at: '2026-05-17T03:34:08.121303'
+    default_value: null
+    description: 是否启用 QMD 知识库检索
+    enabled: true
+    environments:
+    - dev
+    - prod
+    flag_type: boolean
+    name: knowledge_base_enabled
+    percentage_rollout: 100
+    targeting_rules: []
+    updated_at: '2026-05-17T03:35:18.659721'
+    variants: {}
+  llm_analysis_enabled:
+    created_at: '2026-05-17T03:34:08.121307'
+    default_value: null
+    description: 是否启用 LLM 分析功能
+    enabled: true
+    environments:
+    - dev
+    - prod
+    flag_type: boolean
+    name: llm_analysis_enabled
+    percentage_rollout: 100
+    targeting_rules: []
+    updated_at: '2026-05-17T03:35:18.651927'
+    variants: {}
+  bug_type_optimization_enabled:
+    created_at: '2026-05-17T04:00:00.000000'
+    default_value: null
+    description: 是否启用 Bug 类型差异化提示词和模板优化
+    enabled: true
+    environments:
+    - dev
+    - prod
+    flag_type: boolean
+    name: bug_type_optimization_enabled
+    percentage_rollout: 100
+    targeting_rules: []
+    updated_at: '2026-05-17T04:00:00.000000'
+    variants: {}
+  memory_system_enabled:
+    created_at: '2026-05-17T12:00:00.000000'
+    default_value: null
+    description: 是否启用记忆系统（案例库）
+    enabled: true
+    environments:
+    - dev
+    - prod
+    flag_type: boolean
+    name: memory_system_enabled
+    percentage_rollout: 100
+    targeting_rules: []
+    updated_at: '2026-05-17T12:00:00.000000'
+    variants: {}
+  memory_mode:
+    created_at: '2026-05-17T12:00:01.000000'
+    default_value: simple
+    description: 记忆系统模式：simple(MVP轻量模式) | openviking(完整OpenViking集成)
+    enabled: true
+    environments:
+    - dev
+    - prod
+    flag_type: multivariate
+    name: memory_mode
+    percentage_rollout: 100
+    targeting_rules: []
+    updated_at: '2026-05-17T12:00:01.000000'
+    variants:
+      simple:
+        description: 轻量级MVP模式，使用JSON文件存储
+        value: simple
+      openviking:
+        description: OpenViking完整集成模式
+        value: openviking
+  auto_save_cases:
+    created_at: '2026-05-17T12:00:02.000000'
+    default_value: null
+    description: 分析完成后自动保存案例到记忆库
+    enabled: true
+    environments:
+    - dev
+    - prod
+    flag_type: boolean
+    name: auto_save_cases
+    percentage_rollout: 100
+    targeting_rules: []
+    updated_at: '2026-05-17T12:00:02.000000'
+    variants: {}
+  similar_case_retrieval:
+    created_at: '2026-05-17T12:00:03.000000'
+    default_value: null
+    description: 分析前检索相似历史案例
+    enabled: true
+    environments:
+    - dev
+    - prod
+    flag_type: boolean
+    name: similar_case_retrieval
+    percentage_rollout: 100
+    targeting_rules: []
+    updated_at: '2026-05-17T12:00:03.000000'
+    variants: {}
+  anti_rigidity_enabled:
+    created_at: '2026-05-17T12:00:04.000000'
+    default_value: null
+    description: 启用防僵化机制（差异对比、失效标记等）
+    enabled: true
+    environments:
+    - dev
+    - prod
+    flag_type: boolean
+    name: anti_rigidity_enabled
+    percentage_rollout: 100
+    targeting_rules: []
+    updated_at: '2026-05-17T12:00:04.000000'
+    variants: {}
