@@ -343,7 +343,7 @@ def main():
     agent = UnifiedAgent(
         api_key=getattr(args, "api_key", None),
         base_url=getattr(args, "base_url", None),
-        model=getattr(args, "model", "gpt-4o-mini")
+        model=getattr(args, "model", None)
     )
     
     _dispatch_command(args, agent)

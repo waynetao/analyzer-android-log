@@ -67,21 +67,13 @@ try:
     # 发送测试请求
     print(f"\n📤 发送测试请求...")
     response = client.chat_completion(
-        messages=[
-            {"role": "user", "content": "你好，回复 OK 即可"}
-        ],
+        system_prompt="你是一个有用的助手",
+        user_prompt="你好，回复 OK 即可",
         temperature=0.1
     )
     
     print(f"✅ LLM 调用成功！")
-    print(f"   回复: {response.content[:100]}...")
-    
-    # 显示 Token 统计
-    if hasattr(response, 'usage') and response.usage:
-        print(f"\n📊 Token 使用统计:")
-        print(f"   Prompt: {response.usage.prompt_tokens}")
-        print(f"   Completion: {response.usage.completion_tokens}")
-        print(f"   Total: {response.usage.total_tokens}")
+    print(f"   回复: {response[:100]}...")
     
     print("\n" + "=" * 60)
     print("🎉 所有测试通过！LLM 配置正确")
