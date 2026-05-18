@@ -4,13 +4,14 @@ BugReportParser - Bugreport 解析器
 """
 import os
 import re
-import logging
 from typing import List, Dict, Optional
 from dataclasses import dataclass
 from pathlib import Path
 from log_analyzer.parser.log_parser import LogEntry
 
-logger = logging.getLogger(__name__)
+from harness.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class BugReportParser:

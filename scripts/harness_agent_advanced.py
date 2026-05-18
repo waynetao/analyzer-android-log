@@ -16,9 +16,14 @@ load_dotenv()
 import argparse
 from datetime import datetime
 
+# 导入日志系统
+from harness.core.logging import get_logger
+logger = get_logger(__name__)
+
 # 导入Harness系统
 from harness.core import ContextEngine, StateManager, Orchestrator
 from harness.core.feature_flags import FeatureSDK
+from harness.core.analytics import get_analytics_collector
 from harness.skills import LogExtractionSkill, BugAnalysisSkill, ReportGenerationSkill
 from harness.policies import ValidationPolicy, QualityPolicy, FormatPolicy
 
@@ -39,15 +44,18 @@ class AdvancedAndroidLogAgent:
         print("="*60)
         print("Android 日志分析 AI Agent - 高级版 (Harness Engineering)")
         print("="*60)
+        logger.info("Android Log Agent 高级版启动")
         
         # 初始化 Feature Flag SDK
         self.feature_sdk = FeatureSDK()
         print(f"📦 已加载 {len(self.feature_sdk.get_all_flags())} 个 Feature Flags")
+        logger.info(f"Feature Flags 加载完成: {len(self.feature_sdk.get_all_flags())} 个")
         
         # 初始化核心组件
         self.context_engine = ContextEngine()
         self.state_manager = StateManager()
         self.orchestrator = Orchestrator(self.context_engine, self.state_manager)
+        logger.info("核心组件初始化完成")
         
         # 初始化高级技能
         self.llm_skill = LLMAnalysisSkill(api_key, base_url, model)
@@ -61,6 +69,7 @@ class AdvancedAndroidLogAgent:
             else:
                 self.case_library = CaseLibrarySkill()
                 print(f"✅ 使用 simple 模式记忆系统")
+                logger.info("记忆系统: simple 模式")
         
         # 注册技能（基于 Feature Flag）
         self._register_skills()
@@ -291,6 +300,38 @@ class AdvancedAndroidLogAgent:
         # 附加结果信息
         if saved_case_id:
             result["saved_case_id"] = saved_case_id
+        
+        # --- 生成统计分析报告
+        print(f"\n📈 生成统计分析报告...")
+        try:
+            analytics = get_analytics_collector()
+            
+            # 记录分析结果
+            if advanced_analysis and advanced_analysis.get("success"):
+                analytics.record_analysis_result(
+                    bug_type=bug_type,
+                    crash_count=advanced_analysis.get("data", {}).get("crashes", 0),
+                    anr_count=advanced_analysis.get("data", {}).get("anrs", 0),
+                    exception_count=advanced_analysis.get("data", {}).get("exceptions", 0),
+                    critical_log_count=len(advanced_analysis.get("data", {}).get("critical_logs", []))
+                )
+            
+            # 生成报告
+            md_report = analytics.generate_markdown_report()
+            print("✅ 统计分析报告已生成!")
+            print("\n" + "="*60)
+            print("📊 快速统计")
+            print("="*60)
+            
+            # 显示快速统计
+            report_data = analytics.generate_system_report()
+            summary = report_data['summary']
+            print(f"总工作流数: {summary['total_workflows']}")
+            print(f"成功率: {summary['success_rate']:.1f}%")
+            print(f"平均执行时间: {summary['avg_execution_time_ms']:.2f}ms")
+            
+        except Exception as e:
+            print(f"⚠️  统计报告生成失败: {e}")
         
         return result
 

@@ -3,11 +3,17 @@ Orchestrator - Harness Engineering核心协调器
 实现Plan-Build-Verify-Fix工作流，协调整个系统
 """
 import sys
+import time
 from typing import Dict, Any, List, Optional
 from .context import ContextEngine
 from .state import StateManager, WorkflowStage
 from ..skills.base import BaseSkill
 from ..policies.base import BasePolicy
+from .logging import get_logger
+from .analytics import get_analytics_collector
+
+logger = get_logger(__name__)
+
 
 class Orchestrator:
     def __init__(
@@ -19,16 +25,20 @@ class Orchestrator:
         self.state_manager = state_manager
         self.skills: Dict[str, BaseSkill] = {}
         self.policies: List[BasePolicy] = []
+        self.analytics = get_analytics_collector()
+        logger.info("Orchestrator 已初始化")
     
     def register_skill(self, skill: BaseSkill):
         """注册技能（可插拔）"""
         self.skills[skill.name] = skill
         print(f"✅ 技能已注册: {skill.name}")
+        logger.info(f"技能注册成功: {skill.name} (共 {len(self.skills)} 个技能)")
     
     def register_policy(self, policy: BasePolicy):
         """注册策略（约束和验证）"""
         self.policies.append(policy)
         print(f"📋 策略已加载: {policy.name}")
+        logger.info(f"策略加载成功: {policy.name}")
     
     def execute_workflow(
         self,
@@ -39,10 +49,13 @@ class Orchestrator:
         执行完整工作流（Plan-Build-Verify-Fix）
         """
         print(f"\n🚀 开始执行工作流: {workflow_name}")
+        logger.info(f"开始执行工作流: {workflow_name}")
         
-        # 1. 初始化
+        # 启动统计分析
         workflow_id = self.state_manager.initialize_workflow(workflow_name)
+        self.analytics.start_workflow(workflow_name)
         print(f"   工作流ID: {workflow_id}")
+        logger.info(f"工作流ID: {workflow_id}")
         
         try:
             # 2. PLAN - 规划阶段
@@ -56,28 +69,39 @@ class Orchestrator:
             
             # 5. FIX - 如果需要修复
             if not self.state_manager.is_verification_passed():
+                logger.warning("验证未通过，进入修复阶段")
                 self._fix_phase()
+            else:
+                logger.info("验证通过")
             
             # 完成
             self.state_manager.transition_stage(WorkflowStage.COMPLETED)
+            self.analytics.end_workflow(status="completed")
             
             result = self.state_manager.get_state()["outputs"]
             print(f"\n✅ 工作流执行成功!")
+            logger.info(f"工作流执行成功: {workflow_name}, 输出数量: {len(result)}")
             return result
             
         except Exception as e:
             print(f"\n❌ 工作流执行失败: {str(e)}")
+            logger.error(f"工作流执行失败: {workflow_name}, 错误: {str(e)}", exc_info=True)
             self.state_manager.add_validation_result(
                 "workflow_exception", False, f"Exception: {str(e)}"
             )
+            self.analytics.end_workflow(status="failed", error_message=str(e))
             raise
     
     def _plan_phase(self, inputs: Dict[str, Any]):
         """PLAN阶段"""
         print("\n📋 === 阶段 1/4: PLAN (规划) ===")
+        logger.info("开始 PLAN 阶段")
+        stage_start_time = time.time()
         self.state_manager.transition_stage(WorkflowStage.PLAN)
         
         # 1. 验证输入
+        validation_passed = 0
+        validation_failed = 0
         for policy in self.policies:
             if hasattr(policy, 'validate_input'):
                 result = policy.validate_input(inputs)
@@ -86,19 +110,39 @@ class Orchestrator:
                     result.passed,
                     result.details
                 )
+                self.analytics.record_validation(result.passed)
+                if result.passed:
+                    validation_passed += 1
+                else:
+                    validation_failed += 1
         
         # 2. 更新状态
         self.state_manager.update_context("inputs", inputs)
         print("   ✓ 输入验证完成")
+        
+        stage_duration_ms = (time.time() - stage_start_time) * 1000
+        self.analytics.record_stage_execution(
+            stage_name="PLAN",
+            success=(validation_failed == 0),
+            duration_ms=stage_duration_ms
+        )
+        logger.info(f"PLAN 阶段完成: 验证通过 {validation_passed}, 失败 {validation_failed}, 耗时: {stage_duration_ms:.2f}ms")
     
     def _build_phase(self, inputs: Dict[str, Any]):
         """BUILD阶段"""
         print("\n🔨 === 阶段 2/4: BUILD (构建) ===")
+        logger.info("开始 BUILD 阶段")
+        stage_start_time = time.time()
         self.state_manager.transition_stage(WorkflowStage.BUILD)
         
         # 执行技能链
+        success_count = 0
+        failed_count = 0
         for skill_name, skill in self.skills.items():
             print(f"\n   执行技能: {skill_name}")
+            logger.info(f"开始执行技能: {skill_name}")
+            
+            skill_start_time = time.time()
             
             try:
                 skill_inputs = self._prepare_skill_inputs(skill_name, inputs)
@@ -112,23 +156,55 @@ class Orchestrator:
                 }
                 self.state_manager.update_output(skill_name, output_data)
                 
+                skill_duration_ms = (time.time() - skill_start_time) * 1000
+                self.analytics.record_skill_execution(
+                    skill_name=skill_name,
+                    success=result.success,
+                    duration_ms=skill_duration_ms
+                )
+                
                 if result.success:
                     print(f"   ✓ 技能 {skill_name} 执行完成: {result.message}")
+                    logger.info(f"技能执行成功: {skill_name}, 耗时: {skill_duration_ms:.2f}ms")
+                    success_count += 1
                 else:
                     print(f"   ⚠️ 技能 {skill_name}: {result.message}")
+                    logger.warning(f"技能执行警告: {skill_name} - {result.message}")
+                    failed_count += 1
                 
             except Exception as e:
+                skill_duration_ms = (time.time() - skill_start_time) * 1000
+                self.analytics.record_skill_execution(
+                    skill_name=skill_name,
+                    success=False,
+                    duration_ms=skill_duration_ms,
+                    error=str(e)
+                )
                 print(f"   ✗ 技能 {skill_name} 执行失败: {e}")
+                logger.error(f"技能执行失败: {skill_name}, 错误: {str(e)}", exc_info=True)
+                failed_count += 1
                 raise
+        
+        stage_duration_ms = (time.time() - stage_start_time) * 1000
+        self.analytics.record_stage_execution(
+            stage_name="BUILD",
+            success=True,
+            duration_ms=stage_duration_ms
+        )
+        logger.info(f"BUILD 阶段完成: 成功 {success_count}, 失败 {failed_count}, 耗时: {stage_duration_ms:.2f}ms")
     
     def _verify_phase(self):
         """VERIFY阶段"""
         print("\n🔍 === 阶段 3/4: VERIFY (验证) ===")
+        logger.info("开始 VERIFY 阶段")
+        stage_start_time = time.time()
         self.state_manager.transition_stage(WorkflowStage.VERIFY)
         
         outputs = self.state_manager.get_state()["outputs"]
         
         # 应用所有验证策略
+        passed_count = 0
+        failed_count = 0
         for policy in self.policies:
             if hasattr(policy, 'validate_output'):
                 result = policy.validate_output(outputs)
@@ -137,20 +213,47 @@ class Orchestrator:
                     result.passed,
                     result.details
                 )
+                self.analytics.record_validation(result.passed)
                 status = "✅" if result.passed else "❌"
                 print(f"   {status} {policy.name}: {result.details}")
+                if result.passed:
+                    passed_count += 1
+                    logger.info(f"验证通过: {policy.name}")
+                else:
+                    failed_count += 1
+                    logger.warning(f"验证失败: {policy.name} - {result.details}")
+        
+        stage_duration_ms = (time.time() - stage_start_time) * 1000
+        self.analytics.record_stage_execution(
+            stage_name="VERIFY",
+            success=(failed_count == 0),
+            duration_ms=stage_duration_ms
+        )
+        logger.info(f"VERIFY 阶段完成: 通过 {passed_count}, 失败 {failed_count}, 耗时: {stage_duration_ms:.2f}ms")
     
     def _fix_phase(self):
         """FIX阶段"""
         print("\n🔧 === 阶段 4/4: FIX (修复) ===")
+        logger.info("开始 FIX 阶段")
+        stage_start_time = time.time()
         self.state_manager.transition_stage(WorkflowStage.FIX)
         
         failed_tests = self.state_manager.get_failed_validations()
         print(f"   需要修复: {len(failed_tests)} 项")
+        logger.warning(f"需要修复的项目: {len(failed_tests)}")
         
         # 这里可以添加自动修复逻辑
         for failed in failed_tests:
             print(f"   - {failed['check_name']}: {failed['details']}")
+            logger.warning(f"待修复: {failed['check_name']} - {failed['details']}")
+        
+        stage_duration_ms = (time.time() - stage_start_time) * 1000
+        self.analytics.record_stage_execution(
+            stage_name="FIX",
+            success=True,
+            duration_ms=stage_duration_ms
+        )
+        logger.info(f"FIX 阶段完成, 耗时: {stage_duration_ms:.2f}ms")
     
     def _prepare_skill_inputs(self, skill_name: str, global_inputs: Dict[str, Any]) -> Dict[str, Any]:
         """为技能准备输入"""

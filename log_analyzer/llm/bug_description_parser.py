@@ -1,11 +1,12 @@
 import json
 import re
-import logging
 from typing import Optional
 from log_analyzer.models import BugDescription
 from log_analyzer.llm.llm_client import LLMClient
 
-logger = logging.getLogger(__name__)
+from harness.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class BugDescriptionParser:

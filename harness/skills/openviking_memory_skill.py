@@ -11,6 +11,9 @@ from datetime import datetime
 from typing import Dict, Any, List, Optional
 
 from harness.skills.base import BaseSkill, SkillResult
+from harness.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class OpenVikingMemorySkill(BaseSkill):

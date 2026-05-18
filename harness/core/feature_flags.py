@@ -4,11 +4,12 @@ from typing import Dict, Any, Optional, List
 import yaml
 import os
 import hashlib
-import logging
 from dataclasses import dataclass
 from datetime import datetime
 
-logger = logging.getLogger(__name__)
+from harness.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 @dataclass
 class FeatureFlag:

@@ -6,10 +6,11 @@ from typing import Dict, Any, List
 from .base import BaseSkill, SkillResult, LLMBasedSkill
 import os
 import json
-import logging
 from datetime import datetime
 
-logger = logging.getLogger(__name__)
+from harness.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class LogEvidenceMatcherSkill(LLMBasedSkill):

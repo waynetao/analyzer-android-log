@@ -6,9 +6,10 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Dict, Any, Optional
 import os
-import logging
 
-logger = logging.getLogger(__name__)
+from harness.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 try:
     from openai import OpenAI

@@ -3,9 +3,10 @@
 from typing import List, Dict, Any, Optional
 import requests
 import json
-import logging
 
-logger = logging.getLogger(__name__)
+from harness.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 class QMDMemoryManager:
     """QMD 知识库管理器"""

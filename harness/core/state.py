@@ -8,6 +8,10 @@ import uuid
 from datetime import datetime
 from typing import Dict, Any, Optional, List
 from enum import Enum
+from .logging import get_logger
+
+logger = get_logger(__name__)
+
 
 class WorkflowStage(Enum):
     PLAN = "plan"
@@ -15,6 +19,7 @@ class WorkflowStage(Enum):
     VERIFY = "verify"
     FIX = "fix"
     COMPLETED = "completed"
+
 
 class StateManager:
     def __init__(self, state_dir: str = None):
@@ -26,10 +31,12 @@ class StateManager:
         self.current_state: Dict[str, Any] = {}
         self.checkpoints: List[Dict[str, Any]] = []
         self._ensure_dir()
+        logger.info(f"StateManager 初始化完成，状态目录: {state_dir}")
     
     def _ensure_dir(self):
         if not os.path.exists(self.state_dir):
             os.makedirs(self.state_dir)
+            logger.info(f"创建状态目录: {self.state_dir}")
     
     def initialize_workflow(self, workflow_name: str) -> str:
         """初始化工作流状态"""
@@ -47,26 +54,32 @@ class StateManager:
         }
         
         self._save_state()
+        logger.info(f"工作流初始化: {workflow_name}, ID: {workflow_id}")
         return workflow_id
     
     def transition_stage(self, next_stage: WorkflowStage, success: bool = True):
         """状态转换"""
+        old_stage = self.current_state.get("current_stage")
         if success:
             self.current_state["stages_completed"].append(self.current_state["current_stage"])
         
         self.current_state["current_stage"] = next_stage.value
         self._add_checkpoint(f"Transitioned to {next_stage.value}")
         self._save_state()
+        
+        logger.info(f"状态转换: {old_stage} -> {next_stage.value}")
     
     def update_context(self, key: str, value: Any):
         """更新上下文信息"""
         self.current_state["context"][key] = value
         self._save_state()
+        logger.debug(f"上下文更新: {key}")
     
     def update_output(self, key: str, value: Any):
         """更新输出"""
         self.current_state["outputs"][key] = value
         self._save_state()
+        logger.debug(f"输出更新: {key}")
     
     def add_validation_result(self, check_name: str, passed: bool, details: str):
         """添加验证结果"""
@@ -77,6 +90,9 @@ class StateManager:
             "timestamp": datetime.now().isoformat()
         })
         self._save_state()
+        
+        status = "通过" if passed else "失败"
+        logger.info(f"验证结果: {check_name} - {status}")
     
     def _add_checkpoint(self, message: str):
         """添加检查点（用于调试和审计）"""

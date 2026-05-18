@@ -1,10 +1,11 @@
 import os
 import json
-import logging
 from typing import Optional, Dict, Any
 from openai import OpenAI
 
-logger = logging.getLogger(__name__)
+from harness.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class LLMClient:
