@@ -191,7 +191,7 @@ def test_agents():
     
     try:
         # 高级 Agent
-        with open('/workspace/harness_agent_advanced.py', 'r') as f:
+        with open(os.path.join(PROJECT_ROOT, 'scripts/harness_agent_advanced.py'), 'r') as f:
             content = f.read()
             assert 'Orchestrator' in content
             assert 'LogExtractionSkill' in content
