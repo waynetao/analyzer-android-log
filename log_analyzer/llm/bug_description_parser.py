@@ -1,8 +1,11 @@
 import json
 import re
+import logging
 from typing import Optional
 from log_analyzer.models import BugDescription
 from log_analyzer.llm.llm_client import LLMClient
+
+logger = logging.getLogger(__name__)
 
 
 class BugDescriptionParser:
@@ -12,14 +15,14 @@ class BugDescriptionParser:
     def parse(self, bug_text: str) -> BugDescription:
         # 优先使用简单规则解析，不依赖LLM
         result = self._parse_with_rules(bug_text)
-        
+
         # 如果规则解析失败，再尝试LLM
         if not result.summary and self.llm_client and not self.llm_client.use_mock:
             try:
                 result = self._parse_with_llm(bug_text)
-            except:
-                pass
-                
+            except Exception as e:
+                logger.warning(f"LLM parsing failed: {e}")
+
         return result
 
     def _parse_with_rules(self, bug_text: str) -> BugDescription:

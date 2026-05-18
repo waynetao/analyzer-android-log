@@ -1,7 +1,16 @@
+"""
+BugReportParser - Bugreport 解析器
+解析 Android bugreport 文件，提取日志和元数据
+"""
 import os
 import re
+import logging
 from typing import List, Dict, Optional
+from dataclasses import dataclass
+from pathlib import Path
 from log_analyzer.parser.log_parser import LogEntry
+
+logger = logging.getLogger(__name__)
 
 
 class BugReportParser:
@@ -141,6 +150,6 @@ class BugReportParser:
                     build_match = re.search(r'Build:?\s*([^\n]+)', content, re.IGNORECASE)
                     if build_match:
                         metadata['build'] = build_match.group(1).strip()
-            except:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to extract metadata from {log_file}: {e}")
         return metadata

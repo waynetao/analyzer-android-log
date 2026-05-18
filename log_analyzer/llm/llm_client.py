@@ -1,7 +1,10 @@
 import os
 import json
+import logging
 from typing import Optional, Dict, Any
 from openai import OpenAI
+
+logger = logging.getLogger(__name__)
 
 
 class LLMClient:
@@ -11,20 +14,27 @@ class LLMClient:
         base_url: Optional[str] = None,
         model: str = "gpt-4o-mini"
     ):
-        self.api_key = api_key or os.environ.get("OPENAI_API_KEY", "dummy_key")
+        self.api_key = api_key or os.environ.get("OPENAI_API_KEY")
         self.base_url = base_url or os.environ.get("OPENAI_BASE_URL")
         self.model = model
-        
-        # 初始化客户端
-        self.client = OpenAI(
-            api_key=self.api_key,
-            base_url=self.base_url
-        )
-        
-        # 如果没有配置API，使用模拟模式
-        self.use_mock = not self.api_key or self.api_key == "dummy_key"
+
+        # 初始化客户端（只在有 API Key 时）
+        self.client = None
+        self.use_mock = True
+
+        if self.api_key:
+            try:
+                self.client = OpenAI(
+                    api_key=self.api_key,
+                    base_url=self.base_url
+                )
+                self.use_mock = False
+            except Exception as e:
+                logger.warning(f"Failed to initialize LLM client: {e}")
+                print("警告：LLM 客户端初始化失败，将使用模拟模式")
+
         if self.use_mock:
-            print("警告：未配置有效的API Key，将使用模拟模式")
+            print("提示：未配置有效的 API Key，将使用模拟模式（LLM 分析功能不可用）")
 
     def chat_completion(
         self,
