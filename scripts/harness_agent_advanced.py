@@ -9,6 +9,10 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# 加载 .env 文件（自动读取环境变量）
+from dotenv import load_dotenv
+load_dotenv()
+
 # 导入Harness系统
 from harness.core import ContextEngine, StateManager, Orchestrator
 from harness.core.feature_flags import FeatureSDK
