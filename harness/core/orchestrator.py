@@ -3,6 +3,8 @@ Orchestrator - Harness Engineering核心协调器
 实现Plan-Build-Verify-Fix工作流，协调整个系统
 """
 import sys
+import os
+import json
 import time
 from typing import Dict, Any, List, Optional
 from .context import ContextEngine
@@ -311,3 +313,182 @@ class Orchestrator:
                     skill_inputs["log_entries"] = advanced_analysis.get("data", {}).get("critical_logs", [])
 
         return skill_inputs
+
+    # ============ 分阶段执行公开 API ============
+
+    def load_workflow(self, workflow_id: str) -> Dict[str, Any]:
+        """从保存的状态加载工作流"""
+        self.state_manager.current_state = self._load_state(workflow_id)
+        logger.info(f"工作流已加载: {workflow_id}")
+        return self.state_manager.get_state()
+
+    def get_current_state(self) -> Dict[str, Any]:
+        """获取当前工作流状态"""
+        return self.state_manager.get_state()
+
+    def list_workflows(self) -> List[str]:
+        """列出所有已保存的工作流"""
+        state_dir = self.state_manager.state_dir
+        if not os.path.exists(state_dir):
+            return []
+        return [f.replace('.json', '') for f in os.listdir(state_dir) if f.endswith('.json')]
+
+    def plan(self, workflow_name: str, inputs: Dict[str, Any]) -> Dict[str, Any]:
+        """仅执行 PLAN 阶段"""
+        workflow_id = self.state_manager.initialize_workflow(workflow_name)
+        self.analytics.start_workflow(workflow_name)
+        print(f"   工作流ID: {workflow_id}")
+        logger.info(f"开始 PLAN 阶段，工作流: {workflow_name}")
+
+        try:
+            self._plan_phase(inputs)
+            result = self.state_manager.get_state()
+            logger.info(f"PLAN 阶段完成，工作流: {workflow_id}")
+            return result
+        except Exception as e:
+            print(f"\n❌ PLAN 阶段失败: {str(e)}")
+            logger.error(f"PLAN 阶段失败: {str(e)}", exc_info=True)
+            self.state_manager.add_validation_result(
+                "plan_exception", False, f"Exception: {str(e)}"
+            )
+            self.analytics.end_workflow(status="failed", error_message=str(e))
+            raise
+
+    def build(self) -> Dict[str, Any]:
+        """从当前状态继续执行 BUILD 阶段"""
+        state = self.state_manager.get_state()
+        inputs = state.get("context", {}).get("inputs", {})
+
+        try:
+            self._build_phase(inputs)
+            result = self.state_manager.get_state()
+            logger.info("BUILD 阶段完成")
+            return result
+        except Exception as e:
+            print(f"\n❌ BUILD 阶段失败: {str(e)}")
+            logger.error(f"BUILD 阶段失败: {str(e)}", exc_info=True)
+            self.state_manager.add_validation_result(
+                "build_exception", False, f"Exception: {str(e)}"
+            )
+            raise
+
+    def verify(self) -> Dict[str, Any]:
+        """从当前状态继续执行 VERIFY 阶段"""
+        try:
+            self._verify_phase()
+            result = self.state_manager.get_state()
+            logger.info("VERIFY 阶段完成")
+            return result
+        except Exception as e:
+            print(f"\n❌ VERIFY 阶段失败: {str(e)}")
+            logger.error(f"VERIFY 阶段失败: {str(e)}", exc_info=True)
+            self.state_manager.add_validation_result(
+                "verify_exception", False, f"Exception: {str(e)}"
+            )
+            raise
+
+    def fix(self) -> Dict[str, Any]:
+        """从当前状态继续执行 FIX 阶段"""
+        try:
+            self._fix_phase()
+            self.state_manager.transition_stage(WorkflowStage.COMPLETED)
+            self.analytics.end_workflow(status="completed")
+            result = self.state_manager.get_state()
+            logger.info("FIX 阶段完成")
+            print(f"\n✅ 工作流执行完成!")
+            return result
+        except Exception as e:
+            print(f"\n❌ FIX 阶段失败: {str(e)}")
+            logger.error(f"FIX 阶段失败: {str(e)}", exc_info=True)
+            self.state_manager.add_validation_result(
+                "fix_exception", False, f"Exception: {str(e)}"
+            )
+            self.analytics.end_workflow(status="failed", error_message=str(e))
+            raise
+
+    def resume(self) -> Dict[str, Any]:
+        """从当前检查点恢复并继续执行到完成"""
+        state = self.state_manager.get_state()
+        current_stage = state.get("current_stage")
+        stages_completed = state.get("stages_completed", [])
+
+        logger.info(f"恢复工作流，当前阶段: {current_stage}，已完成: {stages_completed}")
+
+        inputs = state.get("context", {}).get("inputs", {})
+
+        if current_stage == WorkflowStage.PLAN.value:
+            self._plan_phase(inputs)
+            if not self.state_manager.is_verification_passed():
+                return self.state_manager.get_state()
+
+        if current_stage in [WorkflowStage.PLAN.value, WorkflowStage.BUILD.value]:
+            self._build_phase(inputs)
+
+        if current_stage in [WorkflowStage.PLAN.value, WorkflowStage.BUILD.value, WorkflowStage.VERIFY.value]:
+            self._verify_phase()
+
+        if not self.state_manager.is_verification_passed():
+            self._fix_phase()
+
+        self.state_manager.transition_stage(WorkflowStage.COMPLETED)
+        self.analytics.end_workflow(status="completed")
+        result = self.state_manager.get_state()["outputs"]
+        print(f"\n✅ 工作流恢复执行完成!")
+        logger.info(f"工作流恢复完成")
+        return result
+
+    def execute_skill(self, skill_name: str, inputs: Dict[str, Any]) -> Dict[str, Any]:
+        """单独执行指定技能"""
+        if skill_name not in self.skills:
+            raise ValueError(f"技能 '{skill_name}' 未注册，可用技能: {list(self.skills.keys())}")
+
+        print(f"\n🔧 单独执行技能: {skill_name}")
+        logger.info(f"单独执行技能: {skill_name}")
+
+        skill = self.skills[skill_name]
+        skill_start_time = time.time()
+
+        try:
+            skill_inputs = self._prepare_skill_inputs(skill_name, inputs)
+            result = skill.execute(skill_inputs)
+
+            output_data = {
+                "success": result.success,
+                "data": result.data,
+                "message": result.message
+            }
+            self.state_manager.update_output(skill_name, output_data)
+
+            skill_duration_ms = (time.time() - skill_start_time) * 1000
+            self.analytics.record_skill_execution(
+                skill_name=skill_name,
+                success=result.success,
+                duration_ms=skill_duration_ms
+            )
+
+            if result.success:
+                print(f"   ✓ 技能 {skill_name} 执行完成: {result.message}")
+                logger.info(f"技能 {skill_name} 执行成功，耗时: {skill_duration_ms:.2f}ms")
+            else:
+                print(f"   ⚠️ 技能 {skill_name}: {result.message}")
+                logger.warning(f"技能 {skill_name} 执行警告: {result.message}")
+
+            return output_data
+
+        except Exception as e:
+            skill_duration_ms = (time.time() - skill_start_time) * 1000
+            self.analytics.record_skill_execution(
+                skill_name=skill_name,
+                success=False,
+                duration_ms=skill_duration_ms,
+                error=str(e)
+            )
+            print(f"   ✗ 技能 {skill_name} 执行失败: {e}")
+            logger.error(f"技能执行失败: {skill_name}, 错误: {str(e)}", exc_info=True)
+            raise
+
+    def _load_state(self, workflow_id: str) -> Dict[str, Any]:
+        """从文件加载状态"""
+        state_file = os.path.join(self.state_manager.state_dir, f"{workflow_id}.json")
+        with open(state_file, 'r', encoding='utf-8') as f:
+            return json.load(f)
