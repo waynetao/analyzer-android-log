@@ -12,11 +12,14 @@ class LLMClient:
         self,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
-        model: str = "gpt-4o-mini"
+        model: str = None
     ):
-        self.api_key = api_key or os.environ.get("OPENAI_API_KEY")
-        self.base_url = base_url or os.environ.get("OPENAI_BASE_URL")
-        self.model = model
+        # 支持 LLM_ 前缀（新）和 OPENAI_ 前缀（向后兼容）
+        self.api_key = api_key or os.environ.get("LLM_API_KEY") or os.environ.get("OPENAI_API_KEY")
+        self.base_url = base_url or os.environ.get("LLM_BASE_URL") or os.environ.get("OPENAI_BASE_URL")
+        self.model = model or os.environ.get("LLM_MODEL") or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+        self.temperature = float(os.environ.get("LLM_TEMPERATURE", "0.7"))
+        self.max_tokens = int(os.environ.get("LLM_MAX_TOKENS", "2000"))
 
         # 初始化客户端（只在有 API Key 时）
         self.client = None
@@ -40,9 +43,13 @@ class LLMClient:
         self,
         system_prompt: str,
         user_prompt: str,
-        temperature: float = 0.7,
-        max_tokens: int = 2000
+        temperature: float = None,
+        max_tokens: int = None
     ) -> str:
+        # 使用实例默认值，或者传入的参数
+        temp = temperature if temperature is not None else self.temperature
+        max_t = max_tokens if max_tokens is not None else self.max_tokens
+        
         if self.use_mock:
             return self._mock_response(system_prompt, user_prompt)
         
@@ -53,8 +60,8 @@ class LLMClient:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                temperature=temperature,
-                max_tokens=max_tokens
+                temperature=temp,
+                max_tokens=max_t
             )
             return response.choices[0].message.content
         except Exception as e:

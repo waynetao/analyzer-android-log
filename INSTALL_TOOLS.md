@@ -215,16 +215,49 @@ python tests/test_health_check.py
 
 ## 可选：LLM 配置
 
-如果你想使用 AI 增强的分析功能，需要配置 LLM：
+如果你想使用 AI 增强的分析功能，需要配置 LLM。
 
-创建 `.env` 文件：
+复制 `.env.example` 为 `.env`：
+```bash
+cp .env.example .env
 ```
-OPENAI_API_KEY=your_api_key_here
-OPENAI_BASE_URL=https://api.openai.com/v1
-OPENAI_MODEL=gpt-4o-mini
+
+然后编辑 `.env` 文件，填入你的配置。
+
+### 支持的模型提供商
+
+已预配置以下常见模型，只需取消注释即可使用：
+
+| 提供商 | 模型示例 | Base URL |
+|-------|---------|---------|
+| **OpenAI** | gpt-4o, gpt-4o-mini | https://api.openai.com/v1 |
+| **智谱 AI** | glm-4, glm-4-flash | https://open.bigmodel.cn/api/paas/v4 |
+| **通义千问** | qwen-plus, qwen-turbo | https://dashscope.aliyuncs.com/compatible-mode/v1 |
+| **文心一言** | ernie-4.0, ernie-3.5 | https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop |
+| **火山引擎** | doubao-pro-32k | https://ark.cn-beijing.volces.com/api/v3 |
+| **腾讯混元** | hunyuan-lite | https://hunyuan.tencentcloudapi.com |
+
+### 配置示例
+
+#### 使用 OpenAI
+```
+LLM_API_KEY=sk-...
+LLM_BASE_URL=https://api.openai.com/v1
+LLM_MODEL=gpt-4o-mini
+LLM_TEMPERATURE=0.7
+LLM_MAX_TOKENS=2000
+```
+
+#### 使用智谱 AI
+```
+LLM_API_KEY=your_zhipu_key
+LLM_BASE_URL=https://open.bigmodel.cn/api/paas/v4
+LLM_MODEL=glm-4-flash
 ```
 
 **OpenAI 官网**：https://openai.com/
+**智谱 AI 官网**：https://open.bigmodel.cn/
+**通义千问官网**：https://dashscope.console.aliyun.com/
 
 ---
 

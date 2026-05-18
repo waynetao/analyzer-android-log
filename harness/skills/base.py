@@ -48,9 +48,12 @@ class LLMBasedSkill(BaseSkill):
     """LLM技能基类 - 封装通用的LLM初始化逻辑"""
     
     def __init__(self, api_key: str = None, base_url: str = None, model: str = None):
-        self.api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
-        self.base_url = base_url or os.environ.get("OPENAI_BASE_URL", "")
-        self.model = model or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+        # 支持 LLM_ 前缀（新）和 OPENAI_ 前缀（向后兼容）
+        self.api_key = api_key or os.environ.get("LLM_API_KEY") or os.environ.get("OPENAI_API_KEY", "")
+        self.base_url = base_url or os.environ.get("LLM_BASE_URL") or os.environ.get("OPENAI_BASE_URL", "")
+        self.model = model or os.environ.get("LLM_MODEL") or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+        self.temperature = float(os.environ.get("LLM_TEMPERATURE", "0.7"))
+        self.max_tokens = int(os.environ.get("LLM_MAX_TOKENS", "2000"))
         self.client: Optional[Any] = None
         self.use_mock = True
         
