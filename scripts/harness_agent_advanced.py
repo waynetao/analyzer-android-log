@@ -22,6 +22,7 @@ from datetime import datetime
 
 # 导入日志系统
 from harness.core.logging import get_logger
+from harness.core.paths import OUTPUTS_REPORTS_DIR_STR, OUTPUTS_STATE_DIR_STR
 logger = get_logger(__name__)
 
 # 导入Harness系统
@@ -417,8 +418,8 @@ def main():
     print("\n" + "="*60)
     print("✅ 处理完成!")
     print("="*60)
-    print(f"报告保存在: {os.path.abspath('outputs/reports')}")
-    print(f"工作流状态保存在: {os.path.abspath('outputs/state')}")
+    print(f"报告保存在: {OUTPUTS_REPORTS_DIR_STR}")
+    print(f"工作流状态保存在: {OUTPUTS_STATE_DIR_STR}")
 
 
 if __name__ == "__main__":

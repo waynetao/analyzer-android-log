@@ -14,6 +14,7 @@ from log_analyzer.llm.llm_client import LLMClient
 from log_analyzer.llm.bug_description_parser import BugDescriptionParser
 from log_analyzer.llm.report_generator import ReportGenerator
 from log_analyzer.llm.scenario_analyzer import ScenarioAnalyzer
+from harness.core.paths import BUG_DATA_DIR_STR
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +26,8 @@ class LogAnalysisAgent:
         self,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
-        model: str = "gpt-4o-mini",
-        storage_dir: str = "./bug_data"
+        model: str = None,
+        storage_dir: str = None
     ):
         # 初始化LLM客户端
         self.llm_client = LLMClient(api_key, base_url, model)
@@ -35,7 +36,7 @@ class LogAnalysisAgent:
         self.bug_parser = BugDescriptionParser(self.llm_client)
         self.report_gen = ReportGenerator(self.llm_client)
         self.scenario_analyzer = ScenarioAnalyzer(self.llm_client)
-        self.storage = StorageHandler(storage_dir)
+        self.storage = StorageHandler(storage_dir or BUG_DATA_DIR_STR)
         
         # 内部状态
         self.current_bug_data: Optional[StandardizedBugData] = None

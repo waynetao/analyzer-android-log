@@ -12,7 +12,7 @@ from typing import Dict, Any, List, Optional
 
 from harness.skills.base import BaseSkill, SkillResult
 from harness.core.logging import get_logger
-from harness.core.paths import PROJECT_ROOT_STR
+from harness.core.paths import PROJECT_ROOT_STR, OUTPUTS_OPENVIKING_DIR_STR
 
 logger = get_logger(__name__)
 
@@ -56,7 +56,7 @@ class OpenVikingMemorySkill(BaseSkill):
         
         # 使用统一路径配置
         if workspace_path is None:
-            workspace_path = os.path.join(PROJECT_ROOT_STR, "openviking_data")
+            workspace_path = OUTPUTS_OPENVIKING_DIR_STR
         self.workspace_path = workspace_path
 
         # 尝试初始化 OpenViking

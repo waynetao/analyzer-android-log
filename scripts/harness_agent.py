@@ -22,6 +22,7 @@ from datetime import datetime
 
 # 导入Harness系统
 from harness.core import ContextEngine, StateManager, Orchestrator
+from harness.core.paths import OUTPUTS_REPORTS_DIR_STR
 from harness.skills import LogExtractionSkill, BugAnalysisSkill, ReportGenerationSkill
 from harness.policies import ValidationPolicy, QualityPolicy, FormatPolicy
 from log_analyzer.llm.bug_description_parser import BugDescriptionParser
@@ -134,7 +135,7 @@ def main():
     print("\n" + "="*60)
     print("✅ 处理完成!")
     print("="*60)
-    print(f"报告保存在: {os.path.abspath('outputs/reports')}")
+    print(f"报告保存在: {OUTPUTS_REPORTS_DIR_STR}")
 
 
 if __name__ == "__main__":

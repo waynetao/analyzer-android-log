@@ -173,9 +173,9 @@ class LogContext:
 
 def setup_logging_from_env():
     """从环境变量读取日志配置并初始化"""
-    from harness.core.paths import PROJECT_ROOT_STR
+    from harness.core.paths import PROJECT_ROOT_STR, OUTPUTS_LOGS_DIR_STR
     log_level = os.environ.get("LOG_LEVEL", "INFO")
-    log_dir = os.environ.get("LOG_DIR", os.path.join(PROJECT_ROOT_STR, "logs"))
+    log_dir = os.environ.get("LOG_DIR", OUTPUTS_LOGS_DIR_STR)
     enable_file = os.environ.get("LOG_ENABLE_FILE", "true").lower() == "true"
     enable_console = os.environ.get("LOG_ENABLE_CONSOLE", "true").lower() == "true"
     json_format = os.environ.get("LOG_JSON_FORMAT", "false").lower() == "true"

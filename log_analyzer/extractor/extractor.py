@@ -4,12 +4,14 @@ import tarfile
 import shutil
 import logging
 
+from harness.core.paths import OUTPUTS_TEMP_DIR_STR
+
 logger = logging.getLogger(__name__)
 
 
 class LogExtractor:
-    def __init__(self, temp_dir: str = "./temp"):
-        self.temp_dir = temp_dir
+    def __init__(self, temp_dir: str = None):
+        self.temp_dir = temp_dir or OUTPUTS_TEMP_DIR_STR
         if not os.path.exists(temp_dir):
             os.makedirs(temp_dir)
 

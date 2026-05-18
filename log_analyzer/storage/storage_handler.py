@@ -5,12 +5,14 @@ from datetime import datetime
 from typing import Optional
 from log_analyzer.models import StandardizedBugData
 
+from harness.core.paths import BUG_DATA_DIR_STR
+
 
 class StorageHandler:
     """标准化数据存储处理器"""
     
-    def __init__(self, storage_dir: str = "./bug_data"):
-        self.storage_dir = storage_dir
+    def __init__(self, storage_dir: str = None):
+        self.storage_dir = storage_dir or BUG_DATA_DIR_STR
         if not os.path.exists(storage_dir):
             os.makedirs(storage_dir)
 

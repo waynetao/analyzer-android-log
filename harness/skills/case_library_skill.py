@@ -12,7 +12,7 @@ from datetime import datetime
 
 from harness.skills.base import BaseSkill, SkillResult
 from harness.core.feature_flags import FeatureSDK
-from harness.core.paths import PROJECT_ROOT_STR
+from harness.core.paths import PROJECT_ROOT_STR, OUTPUTS_CASE_LIBRARY_DIR_STR
 from harness.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -45,7 +45,7 @@ class CaseLibrarySkill(BaseSkill):
         self.feature_sdk = FeatureSDK()
         # 使用统一路径配置
         if library_path is None:
-            library_path = os.path.join(PROJECT_ROOT_STR, "case_library")
+            library_path = OUTPUTS_CASE_LIBRARY_DIR_STR
         self.library_path = Path(library_path)
         self._index_cache: Optional[Dict] = None  # 索引缓存
         self._ensure_directory_structure()

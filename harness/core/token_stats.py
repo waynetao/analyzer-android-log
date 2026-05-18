@@ -10,6 +10,7 @@ from typing import Dict, Optional, Any
 from dataclasses import dataclass, asdict
 
 from harness.core.logging import get_logger
+from harness.core.paths import OUTPUTS_TOKEN_STATS_DIR_STR
 
 logger = get_logger(__name__)
 
@@ -58,7 +59,7 @@ class TokenStatsManager:
             # 存储路径
             self._storage_dir = os.environ.get(
                 "TOKEN_STATS_DIR",
-                "outputs/analytics"
+                OUTPUTS_TOKEN_STATS_DIR_STR
             )
             os.makedirs(self._storage_dir, exist_ok=True)
 

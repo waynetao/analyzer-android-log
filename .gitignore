@@ -19,7 +19,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-bug
+bug/
 
 # Virtual environments
 venv/
@@ -40,23 +40,22 @@ env/
 htmlcov/
 .tox/
 
-# Outputs and logs
+# 所有运行时产物统一归入 outputs/，不纳入版本管理
+# 包含: reports, state, temp, logs, analytics, case_library, openviking_data, token_stats
 outputs/
-logs/
-*.log
 
-# Temporary files
+# 旧路径兼容（如果本地有残留）
+temp/
+logs/
+case_library/
+openviking_data/
+bug_data/
+
+# 临时文件
 *.tmp
 *.bak
 *.cache
-temp/
-outputs/
-
-# Case library runtime data
-case_library/cases/
-case_library/index.json
-case_library/metadata.json
-case_library/tags/
+*.log
 
 # OS
 .DS_Store
@@ -66,11 +65,7 @@ Thumbs.db
 .env
 .env.local
 
-# State files
-outputs/state/
-
 # Claude IDE
-# Claude
 .claude/settings.local.json
 .claude/logs/
 .claude/cache/
