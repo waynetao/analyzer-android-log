@@ -1,5 +1,29 @@
 # Android 日志分析 AI Agent - 快速开始指南
 
+## 前置准备
+
+### 安装必要工具
+
+在开始之前，请先阅读 [工具安装指南](./INSTALL_TOOLS.md)，其中包含：
+- Python 安装
+- Git 安装
+- **aloggrep 安装**（强烈推荐，可以大幅提升分析效果）
+
+### 验证环境
+
+```bash
+# 检查 Python
+python --version
+
+# 检查 aloggrep（如果安装了）
+aloggrep --version
+
+# 运行健康检查
+python tests/test_health_check.py
+```
+
+---
+
 ## 问题分析
 
 从你的运行结果来看，主要有以下几个问题：
