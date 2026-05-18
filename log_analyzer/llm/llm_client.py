@@ -35,7 +35,14 @@ class LLMClient:
         # 支持 LLM_ 前缀（新）和 OPENAI_ 前缀（向后兼容）
         self.api_key = api_key or os.environ.get("LLM_API_KEY") or os.environ.get("OPENAI_API_KEY")
         self.base_url = base_url or os.environ.get("LLM_BASE_URL") or os.environ.get("OPENAI_BASE_URL")
-        self.model = model or os.environ.get("LLM_MODEL") or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+        
+        # 模型名称：如果未指定，必须从环境变量获取
+        configured_model = model or os.environ.get("LLM_MODEL") or os.environ.get("OPENAI_MODEL")
+        if not configured_model:
+            raise ValueError(
+                "LLM 模型未配置！请在 .env 文件中设置 LLM_MODEL 或 OPENAI_MODEL"
+            )
+        self.model = configured_model
         self.temperature = float(os.environ.get("LLM_TEMPERATURE", "0.7"))
         self.max_tokens = int(os.environ.get("LLM_MAX_TOKENS", "2000"))
 
