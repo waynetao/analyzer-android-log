@@ -5,6 +5,7 @@ from .state import StateManager, WorkflowStage
 from .orchestrator import Orchestrator
 from .analytics import AnalyticsCollector, get_analytics_collector
 from .logging import get_logger, setup_logging_from_env
+from .token_stats import TokenStatsManager, get_token_stats
 
 __all__ = [
     'ContextEngine',
@@ -14,5 +15,7 @@ __all__ = [
     'AnalyticsCollector',
     'get_analytics_collector',
     'get_logger',
-    'setup_logging_from_env'
+    'setup_logging_from_env',
+    'TokenStatsManager',
+    'get_token_stats'
 ]

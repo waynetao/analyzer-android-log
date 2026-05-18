@@ -11,11 +11,10 @@ from harness.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-try:
-    from openai import OpenAI
-    HAS_OPENAI = True
-except ImportError:
-    HAS_OPENAI = False
+# 使用我们的 LLMClient
+from log_analyzer.llm.llm_client import LLMClient
+
+HAS_LLM_CLIENT = True
 
 @dataclass
 class SkillResult:
@@ -84,13 +83,45 @@ class LLMBasedSkill(BaseSkill):
     
     def _init_llm_client(self) -> None:
         """初始化LLM客户端"""
-        if HAS_OPENAI and self.api_key:
+        if HAS_LLM_CLIENT:
             try:
-                kwargs = {"api_key": self.api_key}
-                if self.base_url:
-                    kwargs["base_url"] = self.base_url
-                self.client = OpenAI(**kwargs)
-                self.use_mock = False
+                self.client = LLMClient(
+                    api_key=self.api_key,
+                    base_url=self.base_url,
+                    model=self.model
+                )
+                self.use_mock = self.client.use_mock
             except Exception as e:
                 logger.warning(f"Failed to initialize LLM client: {e}")
                 self.use_mock = True
+    
+    def _call_llm(
+        self,
+        system_prompt: str,
+        user_prompt: str
+    ) -> str:
+        """
+        调用 LLM，自动传递场景和技能名称用于 Token 统计
+        
+        Args:
+            system_prompt: 系统提示词
+            user_prompt: 用户提示词
+        
+        Returns:
+            LLM 响应内容
+        """
+        if not self.client:
+            return self._mock_response(system_prompt, user_prompt)
+        
+        return self.client.chat_completion(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+            scene=self.scene,
+            skill=self.name
+        )
+    
+    def _mock_response(self, system_prompt: str, user_prompt: str) -> str:
+        """模拟响应，用于开发测试（向后兼容）"""
+        return "模拟响应"

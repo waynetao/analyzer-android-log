@@ -11,8 +11,10 @@ from dataclasses import dataclass, field, asdict
 from collections import defaultdict
 
 from .logging import get_logger
+from .token_stats import get_token_stats
 
 logger = get_logger(__name__)
+token_stats = get_token_stats()
 
 
 @dataclass
@@ -151,6 +153,9 @@ class AnalyticsCollector:
         # 保存工作流报告
         self._save_workflow_report()
         
+        # 保存 Token 统计
+        token_stats.save_session(f"token_stats_{self.current_workflow.workflow_id}.json")
+        
         logger.info(f"工作流结束: {self.current_workflow.workflow_id}, 状态: {status}, 耗时: {self.current_workflow.duration_ms:.2f}ms")
         
         self.current_workflow = None
@@ -270,6 +275,8 @@ class AnalyticsCollector:
                 "total_execution_time_ms": self.system_metrics.total_execution_time_ms,
                 "avg_execution_time_ms": self._calc_avg_execution_time()
             },
+            "token_usage": token_stats.get_summary(),
+            "token_cost_estimate": token_stats.estimate_cost(),
             "skill_performance": self._get_skill_performance(),
             "stage_performance": self._get_stage_performance(),
             "bug_type_distribution": self.system_metrics.bug_type_distribution,
@@ -302,6 +309,50 @@ class AnalyticsCollector:
 | 总执行时间 | {report['summary']['total_execution_time_ms']:.2f}ms |
 | 平均执行时间 | {report['summary']['avg_execution_time_ms']:.2f}ms |
 
+## 🪙 Token 使用统计
+
+### 总览
+| 指标 | 数值 |
+|------|------|
+| Prompt Tokens | {report['token_usage']['total']['prompt_tokens']} |
+| Completion Tokens | {report['token_usage']['total']['completion_tokens']} |
+| **Total Tokens** | **{report['token_usage']['total']['total_tokens']}** |
+"""
+        if report['token_cost_estimate']:
+            md += f"| 预估费用 (USD) | ${report['token_cost_estimate']['estimated_cost_usd']:.4f} |\n"
+            md += f"| 预估费用 (CNY) | ¥{report['token_cost_estimate']['estimated_cost_cny']:.4f} |\n"
+
+        # 按场景统计
+        if report['token_usage']['by_scene']:
+            md += f"""
+### 按场景统计
+| 场景 | Prompt | Completion | Total |
+|------|--------|------------|-------|
+"""
+            for scene, stats in sorted(report['token_usage']['by_scene'].items()):
+                md += f"| {scene} | {stats['prompt_tokens']} | {stats['completion_tokens']} | {stats['total_tokens']} |\n"
+
+        # 按技能统计
+        if report['token_usage']['by_skill']:
+            md += f"""
+### 按技能统计
+| 技能 | Prompt | Completion | Total |
+|------|--------|------------|-------|
+"""
+            for skill, stats in sorted(report['token_usage']['by_skill'].items()):
+                md += f"| {skill} | {stats['prompt_tokens']} | {stats['completion_tokens']} | {stats['total_tokens']} |\n"
+
+        # 按模型统计
+        if report['token_usage']['by_model']:
+            md += f"""
+### 按模型统计
+| 模型 | Prompt | Completion | Total |
+|------|--------|------------|-------|
+"""
+            for model, stats in sorted(report['token_usage']['by_model'].items()):
+                md += f"| {model} | {stats['prompt_tokens']} | {stats['completion_tokens']} | {stats['total_tokens']} |\n"
+
+        md += f"""
 ## 🔧 技能性能
 
 | 技能名称 | 执行次数 | 成功 | 失败 | 成功率 | 平均耗时 |

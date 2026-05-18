@@ -6,8 +6,10 @@ from openai import OpenAI
 from openai import RateLimitError, Timeout, APIError, APIConnectionError
 
 from harness.core.logging import get_logger
+from harness.core.token_stats import get_token_stats
 
 logger = get_logger(__name__)
+token_stats = get_token_stats()
 
 
 class LLMClient:
@@ -58,9 +60,22 @@ class LLMClient:
         user_prompt: str,
         temperature: float = None,
         max_tokens: int = None,
-        enable_retry: bool = True
+        enable_retry: bool = True,
+        scene: Optional[str] = None,
+        skill: Optional[str] = None
     ) -> str:
-        """调用 LLM API，带重试机制"""
+        """
+        调用 LLM API，带重试机制和 Token 统计
+        
+        Args:
+            system_prompt: 系统提示词
+            user_prompt: 用户提示词
+            temperature: 温度参数
+            max_tokens: 最大 Token 数
+            enable_retry: 是否启用重试
+            scene: 场景（用于 Token 统计）
+            skill: 技能名称（用于 Token 统计）
+        """
         temp = temperature if temperature is not None else self.temperature
         max_t = max_tokens if max_tokens is not None else self.max_tokens
 
@@ -69,11 +84,11 @@ class LLMClient:
 
         if enable_retry:
             return self._chat_completion_with_retry(
-                system_prompt, user_prompt, temp, max_t
+                system_prompt, user_prompt, temp, max_t, scene, skill
             )
         else:
             return self._chat_completion_once(
-                system_prompt, user_prompt, temp, max_t
+                system_prompt, user_prompt, temp, max_t, scene, skill
             )
 
     def _chat_completion_with_retry(
@@ -81,14 +96,19 @@ class LLMClient:
         system_prompt: str,
         user_prompt: str,
         temperature: float,
-        max_tokens: int
+        max_tokens: int,
+        scene: Optional[str] = None,
+        skill: Optional[str] = None
     ) -> str:
         """带重试机制的 LLM 调用"""
         last_error = None
 
         for attempt in range(self.max_retries):
             try:
-                return self._do_api_call(system_prompt, user_prompt, temperature, max_tokens)
+                return self._do_api_call(
+                    system_prompt, user_prompt, temperature, max_tokens,
+                    scene, skill
+                )
 
             except RateLimitError as e:
                 last_error = e
@@ -122,11 +142,16 @@ class LLMClient:
         system_prompt: str,
         user_prompt: str,
         temperature: float,
-        max_tokens: int
+        max_tokens: int,
+        scene: Optional[str] = None,
+        skill: Optional[str] = None
     ) -> str:
         """单次 LLM 调用"""
         try:
-            return self._do_api_call(system_prompt, user_prompt, temperature, max_tokens)
+            return self._do_api_call(
+                system_prompt, user_prompt, temperature, max_tokens,
+                scene, skill
+            )
         except Exception as e:
             logger.error(f"LLM 调用失败: {e}")
             return self._mock_response(system_prompt, user_prompt)
@@ -136,7 +161,9 @@ class LLMClient:
         system_prompt: str,
         user_prompt: str,
         temperature: float,
-        max_tokens: int
+        max_tokens: int,
+        scene: Optional[str] = None,
+        skill: Optional[str] = None
     ) -> str:
         """执行实际的 API 调用"""
         try:
@@ -162,6 +189,24 @@ class LLMClient:
             if content is None:
                 logger.warning("LLM API 消息内容为空")
                 return self._mock_response(system_prompt, user_prompt)
+
+            # 记录 Token 使用
+            if hasattr(response, 'usage') and response.usage:
+                prompt_tokens = getattr(response.usage, 'prompt_tokens', 0)
+                completion_tokens = getattr(response.usage, 'completion_tokens', 0)
+
+                token_stats.record_usage(
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    model=self.model,
+                    scene=scene,
+                    skill=skill
+                )
+
+                logger.debug(
+                    f"LLM Token 使用: prompt={prompt_tokens}, "
+                    f"completion={completion_tokens}, total={prompt_tokens + completion_tokens}"
+                )
 
             return content
 
