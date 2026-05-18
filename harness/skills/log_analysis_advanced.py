@@ -2,6 +2,7 @@
 AdvancedLogAnalysisSkill - 高级日志分析技能
 提取关键日志片段、设备状态变化，供LLM深度分析
 """
+import logging
 from typing import Dict, Any, List
 from dataclasses import dataclass
 from .base import BaseSkill, SkillResult
@@ -9,6 +10,8 @@ from log_analyzer.extractor.extractor import LogExtractor
 from log_analyzer.bugreport.bugreport_parser import BugReportParser
 from log_analyzer.cleaner.log_cleaner import LogCleaner
 from log_analyzer.analyzer.log_analyzer import LogAnalyzer, AnalysisResult
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class CriticalLogEntry:
@@ -42,15 +45,21 @@ class AdvancedLogAnalysisSkill(BaseSkill):
             else:
                 extract_dir = None
             
-            if not extract_dir:
+            if extract_dir:
+                logger.info(f"  复用 log_extraction 解压结果: {extract_dir}")
+            else:
+                logger.info("  未找到已有解压结果，重新解压...")
                 extractor = LogExtractor()
                 extract_dir = extractor.extract(log_path)
+            
             parser = BugReportParser(extract_dir)
             log_entries = parser.parse_all()
+            logger.info(f"  解析日志条数: {len(log_entries)}")
             
             # 清洗日志
             cleaner = LogCleaner(log_entries)
             cleaned_logs = cleaner.clean_all()
+            logger.info(f"  清洗后日志条数: {len(cleaned_logs)} (过滤 {len(log_entries) - len(cleaned_logs)} 条)")
             
             # 分析日志
             analyzer = LogAnalyzer(cleaned_logs)

@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 class LogExtractor:
     def __init__(self, temp_dir: str = None):
         self.temp_dir = temp_dir or OUTPUTS_TEMP_DIR_STR
-        if not os.path.exists(temp_dir):
-            os.makedirs(temp_dir)
+        if not os.path.exists(self.temp_dir):
+            os.makedirs(self.temp_dir)
 
     @staticmethod
     def _is_safe_path(member_path: str, extract_dir: str) -> bool:

@@ -3,10 +3,13 @@ LogExtractionSkill - 日志提取和解析技能
 可插拔的技能模块，支持多种日志格式
 """
 import os
+import logging
 from typing import Dict, Any, List
 from .base import BaseSkill, SkillResult
 from log_analyzer.extractor.extractor import LogExtractor
 from log_analyzer.bugreport.bugreport_parser import BugReportParser
+
+logger = logging.getLogger(__name__)
 
 class LogExtractionSkill(BaseSkill):
     """日志提取和解析技能"""
@@ -31,6 +34,10 @@ class LogExtractionSkill(BaseSkill):
             parser = BugReportParser(extract_dir)
             log_entries = parser.parse_all()
             metadata = parser.extract_metadata()
+            
+            logger.info(f"  解压目录: {extract_dir}")
+            logger.info(f"  日志文件数: {len(parser.log_files)}")
+            logger.info(f"  解析日志条数: {len(log_entries)}")
             
             result = {
                 "extraction_dir": extract_dir,

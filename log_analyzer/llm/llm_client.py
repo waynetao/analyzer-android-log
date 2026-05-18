@@ -3,7 +3,7 @@ import json
 import time
 from typing import Optional, Dict, Any, Tuple
 from openai import OpenAI
-from openai import RateLimitError, Timeout, APIError, APIConnectionError
+from openai import RateLimitError, APITimeoutError, APIError, APIConnectionError
 
 from harness.core.logging import get_logger
 
@@ -136,7 +136,7 @@ class LLMClient:
                 if attempt < self.max_retries - 1:
                     time.sleep(wait_time)
 
-            except (APIError, APIConnectionError, Timeout) as e:
+            except (APIError, APIConnectionError, APITimeoutError) as e:
                 last_error = e
                 wait_time = self._get_retry_delay(attempt, e)
                 logger.warning(

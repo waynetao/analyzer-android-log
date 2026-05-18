@@ -4,10 +4,13 @@ LogExtractionWithAloggrepSkill - 使用 aloggrep 进行日志提取和分析的�
 """
 import os
 import json
+import logging
 from typing import Dict, Any, List
 from .base import BaseSkill, SkillResult
 from log_analyzer.aloggrep_wrapper import ALogGrep, LogLevel
 from log_analyzer.extractor.extractor import LogExtractor
+
+logger = logging.getLogger(__name__)
 
 
 class LogExtractionWithAloggrepSkill(BaseSkill):
@@ -42,12 +45,16 @@ class LogExtractionWithAloggrepSkill(BaseSkill):
             else:
                 extract_dir = None
             
-            if not extract_dir:
+            if extract_dir:
+                logger.info(f"  复用 log_extraction 解压结果: {extract_dir}")
+            else:
+                logger.info("  未找到已有解压结果，重新解压...")
                 extractor = LogExtractor()
                 extract_dir = extractor.extract(log_path)
             
             # 找到实际的日志文件
             log_files = self._find_log_files(extract_dir)
+            logger.info(f"  找到日志文件数: {len(log_files)}")
             
             result = {
                 "extraction_dir": extract_dir,
