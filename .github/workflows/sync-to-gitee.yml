@@ -19,5 +19,5 @@ jobs:
           dst_key: ${{ secrets.GITEE_PRIVATE_KEY }}
           dst_token: ${{ secrets.GITEE_TOKEN }}
           account_type: user
-          static_list: "android-log-analyzer"
+          static_list: "analyzer-android-log"
           force_update: true
