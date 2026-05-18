@@ -1,6 +1,6 @@
 """知识检索技能 - 从 QMD 知识库检索相关知识"""
 
-from typing import Dict, Any
+from typing import Dict, Any, List
 from .base import BaseSkill, SkillResult
 
 class KnowledgeRetrievalSkill(BaseSkill):

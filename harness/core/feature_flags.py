@@ -56,10 +56,13 @@ class FeatureFlag:
 class FeatureFlagEngine:
     """Feature Flag 求值引擎"""
     
-    DEFAULT_CONFIG_PATH = "/workspace/config/feature_flags.yaml"
-    
     def __init__(self, config_path: str = None):
-        self.config_path = config_path or self.DEFAULT_CONFIG_PATH
+        # 自动计算项目根目录和配置文件路径
+        if config_path:
+            self.config_path = config_path
+        else:
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            self.config_path = os.path.join(project_root, "config", "feature_flags.yaml")
         self.flags: Dict[str, FeatureFlag] = {}
         self._load_flags()
     

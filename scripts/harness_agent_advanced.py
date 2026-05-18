@@ -4,10 +4,10 @@ Harness Android Log Analysis Agent - Advanced Version
 高质量、精准的分析，有日志证据支撑
 集成记忆系统（支持 simple 和 openviking 模式无缝切换
 """
-import os
+# 重要：必须在所有 import 之前设置路径
 import sys
-import argparse
-from datetime import datetime
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # 导入Harness系统
 from harness.core import ContextEngine, StateManager, Orchestrator
@@ -23,12 +23,6 @@ from harness.skills.log_evidence_matcher import LogEvidenceMatcherSkill, Timelin
 from harness.skills.knowledge_retrieval import KnowledgeRetrievalSkill
 from harness.skills.bug_type_analysis_skill import BugTypeAnalysisSkill
 from harness.skills.case_library_skill import CaseLibrarySkill
-
-# 导入Bug描述解析
-import sys
-# 添加项目根目录到路径（支持任意位置运行）
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 class AdvancedAndroidLogAgent:
@@ -303,7 +297,7 @@ def main():
         help="Bug描述文本或文件"
     )
     parser.add_argument(
-        "--log", "-l", required=True,
+        "--log", "-l", dest="log_path", required=True,
         help="日志文件/目录路径"
     )
     parser.add_argument(

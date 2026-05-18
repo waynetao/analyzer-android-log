@@ -4,8 +4,11 @@ Harness Android Log Analysis Agent
 基于Harness Engineering架构的AI Agent
 完整的Plan-Build-Verify-Fix工作流
 """
-import os
+# 重要：必须在所有 import 之前设置路径
 import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import argparse
 from datetime import datetime
 
@@ -13,12 +16,6 @@ from datetime import datetime
 from harness.core import ContextEngine, StateManager, Orchestrator
 from harness.skills import LogExtractionSkill, BugAnalysisSkill, ReportGenerationSkill
 from harness.policies import ValidationPolicy, QualityPolicy, FormatPolicy
-
-# 导入Bug描述解析
-import sys
-# 添加项目根目录到路径（支持任意位置运行）
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from log_analyzer.llm.bug_description_parser import BugDescriptionParser
 from log_analyzer.llm.llm_client import LLMClient
 
