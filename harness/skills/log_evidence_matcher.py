@@ -3,7 +3,7 @@ Log Evidence Matcher - 日志证据匹配器
 将用户描述的现象和日志证据进行对照，提升报告置信度
 """
 from typing import Dict, Any, List
-from .base import BaseSkill, SkillResult
+from .base import BaseSkill, SkillResult, LLMBasedSkill
 import sys
 import os
 import json
@@ -12,14 +12,8 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-try:
-    from openai import OpenAI
-    HAS_OPENAI = True
-except ImportError:
-    HAS_OPENAI = False
 
-
-class LogEvidenceMatcherSkill(BaseSkill):
+class LogEvidenceMatcherSkill(LLMBasedSkill):
     """日志证据匹配器 - 对照用户现象和实际日志"""
 
     @property
@@ -27,19 +21,7 @@ class LogEvidenceMatcherSkill(BaseSkill):
         return "log_evidence_matcher"
 
     def __init__(self, api_key: str = None, base_url: str = None, model: str = None):
-        self.api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
-        self.base_url = base_url or os.environ.get("OPENAI_BASE_URL", "")
-        self.model = model or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
-        self.client = None
-        self.use_mock = True
-
-        if HAS_OPENAI and self.api_key:
-            try:
-                self.client = OpenAI(api_key=self.api_key, base_url=self.base_url if self.base_url else None)
-                self.use_mock = False
-            except Exception as e:
-                logger.warning(f"Failed to initialize LLM client: {e}")
-                self.use_mock = True
+        super().__init__(api_key, base_url, model)
     
     def execute(self, inputs: Dict[str, Any]) -> SkillResult:
         valid, msg = self._validate_inputs(inputs, ["bug_description", "critical_logs", "device_state"])

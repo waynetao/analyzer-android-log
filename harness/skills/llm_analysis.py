@@ -4,20 +4,14 @@ LLMAnalysisSkill - LLM 驱动的高质量分析技能
 支持 Bug 类型差异化提示词和模板
 """
 from typing import Dict, Any, Optional
-from .base import BaseSkill, SkillResult
+from .base import BaseSkill, SkillResult, LLMBasedSkill
 from harness.skills.bug_type import PromptTemplateManager
 import sys
 import os
 import json
 from datetime import datetime
 
-try:
-    from openai import OpenAI
-    HAS_OPENAI = True
-except ImportError:
-    HAS_OPENAI = False
-
-class LLMAnalysisSkill(BaseSkill):
+class LLMAnalysisSkill(LLMBasedSkill):
     """LLM 高级分析技能 - 高质量、有证据支撑
     支持 Bug 类型差异化提示词和模板优化
     """
@@ -27,23 +21,13 @@ class LLMAnalysisSkill(BaseSkill):
         return "llm_analysis"
     
     def __init__(self, api_key: str = None, base_url: str = None, model: str = None, enable_bug_type_optimization: bool = True):
-        self.api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
-        self.base_url = base_url or os.environ.get("OPENAI_BASE_URL", "")
-        self.model = model or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
-        self.client = None
-        self.use_mock = True
+        super().__init__(api_key, base_url, model)
         self.enable_bug_type_optimization = enable_bug_type_optimization
         
-        if HAS_OPENAI and self.api_key:
-            try:
-                self.client = OpenAI(api_key=self.api_key, base_url=self.base_url if self.base_url else None)
-                self.use_mock = False
-                print(f"✅ LLM 客户端已初始化 (模型: {self.model})")
-                if self.enable_bug_type_optimization:
-                    print(f"✅ Bug 类型差异化优化已启用")
-            except Exception as e:
-                print(f"⚠️ LLM 客户端初始化失败，使用模拟模式: {e}")
-                self.use_mock = True
+        if not self.use_mock:
+            print(f"✅ LLM 客户端已初始化 (模型: {self.model})")
+            if self.enable_bug_type_optimization:
+                print(f"✅ Bug 类型差异化优化已启用")
     
     def execute(self, inputs: Dict[str, Any]) -> SkillResult:
         valid, msg = self._validate_inputs(inputs, ["bug_description", "advanced_log_analysis"])

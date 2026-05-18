@@ -5,6 +5,7 @@ CaseLibrarySkill - 轻量级案例库 Skill (MVP)
 import sys
 import os
 import json
+import re
 import uuid
 from pathlib import Path
 from typing import Dict, Any, List, Optional
@@ -12,6 +13,16 @@ from datetime import datetime
 
 from harness.skills.base import BaseSkill, SkillResult
 from harness.core.feature_flags import FeatureSDK
+
+
+def validate_case_id(case_id: str) -> bool:
+    """验证 case_id 格式，防止路径注入"""
+    return bool(re.match(r'^[a-zA-Z0-9_-]+$', case_id))
+
+
+def validate_tag(tag: str) -> bool:
+    """验证 tag 格式，防止路径注入"""
+    return bool(re.match(r'^[a-zA-Z0-9_-]+$', tag))
 
 
 class CaseLibrarySkill(BaseSkill):
@@ -197,6 +208,10 @@ class CaseLibrarySkill(BaseSkill):
         tags_dir = self.library_path / "tags"
         
         for tag in case_data["tags"]:
+            # 验证 tag 格式，防止路径注入
+            if not validate_tag(tag):
+                continue
+            
             tag_file = tags_dir / f"{tag}.json"
             
             try:
@@ -280,6 +295,9 @@ class CaseLibrarySkill(BaseSkill):
     
     def _load_case(self, case_id: str) -> Optional[Dict]:
         """加载单个案例"""
+        # 验证 case_id 格式，防止路径注入
+        if not validate_case_id(case_id):
+            return None
         case_path = self.library_path / "cases" / case_id
         if case_path.exists():
             with open(case_path, 'r', encoding='utf-8') as f:

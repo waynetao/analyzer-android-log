@@ -3,7 +3,7 @@ LLM增强技能 - Bug描述解析、日志过滤、异常分类
 包含多个LLM驱动的增强功能
 """
 from typing import Dict, Any, List
-from .base import BaseSkill, SkillResult
+from .base import BaseSkill, SkillResult, LLMBasedSkill
 import sys
 import os
 import json
@@ -19,7 +19,7 @@ except ImportError:
     HAS_OPENAI = False
 
 
-class BugDescriptionParserSkill(BaseSkill):
+class BugDescriptionParserSkill(LLMBasedSkill):
     """LLM驱动的Bug描述智能解析器"""
 
     @property
@@ -27,19 +27,7 @@ class BugDescriptionParserSkill(BaseSkill):
         return "bug_desc_parser"
 
     def __init__(self, api_key: str = None, base_url: str = None, model: str = None):
-        self.api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
-        self.base_url = base_url or os.environ.get("OPENAI_BASE_URL", "")
-        self.model = model or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
-        self.client = None
-        self.use_mock = True
-
-        if HAS_OPENAI and self.api_key:
-            try:
-                self.client = OpenAI(api_key=self.api_key, base_url=self.base_url if self.base_url else None)
-                self.use_mock = False
-            except Exception as e:
-                logger.warning(f"Failed to initialize LLM client: {e}")
-                self.use_mock = True
+        super().__init__(api_key, base_url, model)
     
     def execute(self, inputs: Dict[str, Any]) -> SkillResult:
         valid, msg = self._validate_inputs(inputs, ["bug_text"])
@@ -127,7 +115,7 @@ Bug描述：
         }
 
 
-class LogFilterSkill(BaseSkill):
+class LogFilterSkill(LLMBasedSkill):
     """LLM驱动的智能日志过滤器"""
 
     @property
@@ -135,19 +123,7 @@ class LogFilterSkill(BaseSkill):
         return "log_filter"
 
     def __init__(self, api_key: str = None, base_url: str = None, model: str = None):
-        self.api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
-        self.base_url = base_url or os.environ.get("OPENAI_BASE_URL", "")
-        self.model = model or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
-        self.client = None
-        self.use_mock = True
-
-        if HAS_OPENAI and self.api_key:
-            try:
-                self.client = OpenAI(api_key=self.api_key, base_url=self.base_url if self.base_url else None)
-                self.use_mock = False
-            except Exception as e:
-                logger.warning(f"Failed to initialize LLM client: {e}")
-                self.use_mock = True
+        super().__init__(api_key, base_url, model)
     
     def execute(self, inputs: Dict[str, Any]) -> SkillResult:
         valid, msg = self._validate_inputs(inputs, ["bug_description", "log_entries"])
@@ -226,7 +202,7 @@ class LogFilterSkill(BaseSkill):
         return filtered[:100]  # 限制数量
 
 
-class ExceptionClassifierSkill(BaseSkill):
+class ExceptionClassifierSkill(LLMBasedSkill):
     """LLM驱动的异常分类器"""
 
     @property
@@ -234,19 +210,7 @@ class ExceptionClassifierSkill(BaseSkill):
         return "exception_classifier"
 
     def __init__(self, api_key: str = None, base_url: str = None, model: str = None):
-        self.api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
-        self.base_url = base_url or os.environ.get("OPENAI_BASE_URL", "")
-        self.model = model or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
-        self.client = None
-        self.use_mock = True
-
-        if HAS_OPENAI and self.api_key:
-            try:
-                self.client = OpenAI(api_key=self.api_key, base_url=self.base_url if self.base_url else None)
-                self.use_mock = False
-            except Exception as e:
-                logger.warning(f"Failed to initialize LLM client: {e}")
-                self.use_mock = True
+        super().__init__(api_key, base_url, model)
     
     def execute(self, inputs: Dict[str, Any]) -> SkillResult:
         valid, msg = self._validate_inputs(inputs, ["exceptions"])
