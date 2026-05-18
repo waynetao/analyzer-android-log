@@ -39,6 +39,8 @@ class ALogGrep:
                 [self.binary_path, "--help"],
                 capture_output=True,
                 text=True,
+                encoding='utf-8',
+                errors='replace',
                 timeout=10
             )
             self.available = result.returncode in [0, 1]
@@ -65,6 +67,8 @@ class ALogGrep:
                 cmd,
                 capture_output=True,
                 text=True,
+                encoding='utf-8',
+                errors='replace',
                 timeout=300
             )
             return {

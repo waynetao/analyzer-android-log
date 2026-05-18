@@ -139,16 +139,35 @@ class LLMClient:
         max_tokens: int
     ) -> str:
         """执行实际的 API 调用"""
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=temperature,
-            max_tokens=max_tokens
-        )
-        return response.choices[0].message.content
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
+
+            if response is None:
+                logger.warning("LLM API 返回为空")
+                return self._mock_response(system_prompt, user_prompt)
+
+            if not hasattr(response, 'choices') or not response.choices:
+                logger.warning("LLM API 响应格式异常")
+                return self._mock_response(system_prompt, user_prompt)
+
+            content = response.choices[0].message.content
+            if content is None:
+                logger.warning("LLM API 消息内容为空")
+                return self._mock_response(system_prompt, user_prompt)
+
+            return content
+
+        except Exception as e:
+            logger.error(f"LLM API 调用异常: {e}")
+            raise
 
     def _get_retry_delay(self, attempt: int, error: Exception) -> float:
         """计算重试延迟时间"""
