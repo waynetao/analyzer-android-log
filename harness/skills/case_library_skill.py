@@ -2,7 +2,6 @@
 CaseLibrarySkill - 轻量级案例库 Skill (MVP)
 使用本地 JSON 文件存储，无需外部依赖
 """
-import sys
 import os
 import json
 import re

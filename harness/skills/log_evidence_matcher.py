@@ -4,7 +4,6 @@ Log Evidence Matcher - 日志证据匹配器
 """
 from typing import Dict, Any, List
 from .base import BaseSkill, SkillResult, LLMBasedSkill
-import sys
 import os
 import json
 import logging

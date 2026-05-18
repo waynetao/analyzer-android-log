@@ -6,7 +6,6 @@ LLMAnalysisSkill - LLM 驱动的高质量分析技能
 from typing import Dict, Any, Optional
 from .base import BaseSkill, SkillResult, LLMBasedSkill
 from harness.skills.bug_type import PromptTemplateManager
-import sys
 import os
 import json
 from datetime import datetime

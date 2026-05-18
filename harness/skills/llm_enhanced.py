@@ -4,7 +4,6 @@ LLM增强技能 - Bug描述解析、日志过滤、异常分类
 """
 from typing import Dict, Any, List
 from .base import BaseSkill, SkillResult, LLMBasedSkill
-import sys
 import os
 import json
 import logging

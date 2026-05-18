@@ -130,7 +130,7 @@ def main():
     print("\n" + "="*60)
     print("✅ 处理完成!")
     print("="*60)
-    print("报告保存在: /workspace/outputs/reports/")
+    print(f"报告保存在: {os.path.abspath('outputs/reports')}")
 
 
 if __name__ == "__main__":

@@ -3,7 +3,6 @@ BugTypeAnalysisSkill - Bug类型差异化分析Skill
 根据不同Bug类型使用不同的提示词和输出模板
 """
 from typing import Dict, Any
-import sys
 import os
 
 from harness.skills.base import BaseSkill, SkillResult

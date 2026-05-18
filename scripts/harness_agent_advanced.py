@@ -369,8 +369,8 @@ def main():
     print("\n" + "="*60)
     print("✅ 处理完成!")
     print("="*60)
-    print("报告保存在: /workspace/outputs/reports/")
-    print("工作流状态保存在: /workspace/outputs/state/")
+    print(f"报告保存在: {os.path.abspath('outputs/reports')}")
+    print(f"工作流状态保存在: {os.path.abspath('outputs/state')}")
 
 
 if __name__ == "__main__":
