@@ -15,6 +15,8 @@ jobs:
         uses: Yikun/hub-mirror-action@master
         with:
           src: gitee/${{ secrets.GITEE_USER }}          # 源端：你的 Gitee 账号
+          src_key: ${{ secrets.GITEE_PRIVATE_KEY }}     # Gitee SSH 私钥（用于从 Gitee 拉取）
+          src_token: ${{ secrets.GITEE_TOKEN }}         # Gitee Token（用于 API 认证）
           dst: github/${{ github.repository_owner }}    # 目的端：你的 GitHub 账号
           dst_key: ${{ secrets.GITHUB_PRIVATE_KEY }}    # 往 GitHub 推送代码的私钥
           dst_token: ${{ secrets.GITHUB_TOKEN_PAT }}    # GitHub 的 API Token
