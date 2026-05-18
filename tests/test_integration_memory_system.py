@@ -9,7 +9,8 @@ import tempfile
 import shutil
 from pathlib import Path
 
-sys.path.insert(0, '/workspace')
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PROJECT_ROOT)
 
 from harness.skills.case_library_skill import CaseLibrarySkill
 from harness.core.feature_flags import FeatureSDK
@@ -270,16 +271,18 @@ def test_directory_structure():
 
 
 def test_memory_system_sandbox():
-    """测试默认的 /workspace/case_library 内存系统（沙盒模式，不会影响生产数据）"""
+    """测试默认的内存系统（沙盒模式，不会影响生产数据）"""
     print("\n" + "="*60)
     print("测试 4: 沙盒模式下的默认案例库")
     print("="*60)
     
+    case_lib_path = os.path.join(PROJECT_ROOT, "case_library")
+    
     # 备份原有的案例库（如果存在）
-    original_exists = os.path.exists("/workspace/case_library")
+    original_exists = os.path.exists(case_lib_path)
     if original_exists:
         print("⚠️  检测到原有的案例库，将临时备份...")
-        os.rename("/workspace/case_library", "/workspace/case_library.bak")
+        os.rename(case_lib_path, case_lib_path + ".bak")
     
     try:
         case_library = CaseLibrarySkill()
@@ -328,14 +331,14 @@ def test_memory_system_sandbox():
         # 清理测试数据
         if original_exists:
             # 恢复原有的案例库
-            if os.path.exists("/workspace/case_library"):
-                shutil.rmtree("/workspace/case_library")
-            os.rename("/workspace/case_library.bak", "/workspace/case_library")
+            if os.path.exists(case_lib_path):
+                shutil.rmtree(case_lib_path)
+            os.rename(case_lib_path + ".bak", case_lib_path)
             print("ℹ️  已恢复原有的案例库")
         else:
             # 清理测试创建的案例库
-            if os.path.exists("/workspace/case_library"):
-                shutil.rmtree("/workspace/case_library")
+            if os.path.exists(case_lib_path):
+                shutil.rmtree(case_lib_path)
             print("ℹ️  已清理测试数据")
 
 

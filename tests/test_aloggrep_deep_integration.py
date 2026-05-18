@@ -5,7 +5,7 @@ aloggrep 深度集成测试脚本
 """
 import os
 import sys
-sys.path.insert(0, '/workspace')
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from harness.skills.log_extraction_aloggrep_workflow import (
     AloggrepWorkflowSkill,
@@ -100,8 +100,8 @@ def test_skill_files():
     print("4. 测试Skill文件")
     print("=" * 60)
     
-    skill_path = "/workspace/.claude/skills/loggrep-analyzer/SKILL.md"
-    commands_path = "/workspace/.claude/skills/loggrep-analyzer/references/commands.md"
+    skill_path = os.path.join(PROJECT_ROOT, ".claude/skills/loggrep-analyzer/SKILL.md")
+    commands_path = os.path.join(PROJECT_ROOT, ".claude/skills/loggrep-analyzer/references/commands.md")
     
     files_to_check = [
         ("主Skill文件", skill_path),

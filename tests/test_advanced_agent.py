@@ -5,7 +5,7 @@
 import os
 import sys
 
-sys.path.insert(0, '/workspace')
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # 简化版本，直接调用技能链，避免复杂的Orchestrator问题
 from harness.skills.log_extraction import LogExtractionSkill
@@ -19,7 +19,7 @@ def main():
     print("="*60)
     
     # 测试文件
-    log_path = "/workspace/test_log.txt"
+    log_path = os.path.join(PROJECT_ROOT, "test_log.txt")
     bug_desc = {
         "raw_text": "应用在打开主页面时崩溃",
         "summary": "应用启动崩溃",

@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Feature Flag 功能测试脚本"""
+import os
 import sys
-sys.path.insert(0, '/workspace')
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PROJECT_ROOT)
 
 def test_feature_flags():
     """测试 Feature Flag 核心模块"""
@@ -93,7 +95,7 @@ def test_agent_integration():
     
     try:
         # 检查 Agent 文件是否导入了 FeatureSDK
-        with open('/workspace/harness_agent_advanced.py', 'r') as f:
+        with open(os.path.join(PROJECT_ROOT, 'scripts/harness_agent_advanced.py'), 'r') as f:
             content = f.read()
             assert 'from harness.core.feature_flags import FeatureSDK' in content
             assert 'self.feature_sdk = FeatureSDK()' in content
@@ -132,21 +134,21 @@ def test_cli_tool():
     
     try:
         # 测试 list 命令
-        result = subprocess.run(['python', '/workspace/ffctl.py', 'list'], 
+        result = subprocess.run(['python', os.path.join(PROJECT_ROOT, 'scripts/ffctl.py'), 'list'], 
                                capture_output=True, text=True)
         assert result.returncode == 0
         assert 'llm_analysis_enabled' in result.stdout
         print("✅ ffctl list 命令正常")
         
         # 测试 show 命令
-        result = subprocess.run(['python', '/workspace/ffctl.py', 'show', 'analysis_mode'], 
+        result = subprocess.run(['python', os.path.join(PROJECT_ROOT, 'scripts/ffctl.py'), 'show', 'analysis_mode'], 
                                capture_output=True, text=True)
         assert result.returncode == 0
         assert 'multivariate' in result.stdout
         print("✅ ffctl show 命令正常")
         
         # 测试 evaluate 命令
-        result = subprocess.run(['python', '/workspace/ffctl.py', 'evaluate', 'llm_analysis_enabled'], 
+        result = subprocess.run(['python', os.path.join(PROJECT_ROOT, 'scripts/ffctl.py'), 'evaluate', 'llm_analysis_enabled'], 
                                capture_output=True, text=True)
         assert result.returncode == 0
         assert '启用:' in result.stdout

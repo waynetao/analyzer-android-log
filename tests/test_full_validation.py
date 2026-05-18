@@ -5,7 +5,8 @@ Android 日志分析 AI Agent - 全面功能验证测试
 """
 import os
 import sys
-sys.path.insert(0, '/workspace')
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PROJECT_ROOT)
 
 def test_harness_core():
     """测试 Harness 核心系统"""
@@ -242,10 +243,10 @@ def test_qmd_integration():
     
     # 测试知识文件是否存在
     knowledge_files = [
-        "/workspace/knowledge_base/android_knowledge/event_log_tags/system_tags.md",
-        "/workspace/knowledge_base/android_knowledge/anr_tombstone/anr_format.md",
-        "/workspace/knowledge_base/android_knowledge/dumpsys/meminfo_sop.md",
-        "/workspace/knowledge_base/android_knowledge/gc_logs/format_parsing.md"
+        os.path.join(PROJECT_ROOT, "knowledge_base/android_knowledge/event_log_tags/system_tags.md"),
+        os.path.join(PROJECT_ROOT, "knowledge_base/android_knowledge/anr_tombstone/anr_format.md"),
+        os.path.join(PROJECT_ROOT, "knowledge_base/android_knowledge/dumpsys/meminfo_sop.md"),
+        os.path.join(PROJECT_ROOT, "knowledge_base/android_knowledge/gc_logs/format_parsing.md")
     ]
     
     all_exist = True
@@ -301,7 +302,7 @@ def test_feature_flags():
     # 测试 CLI 工具
     try:
         import subprocess
-        result = subprocess.run(['python', '/workspace/ffctl.py', 'list'], 
+        result = subprocess.run(['python', os.path.join(PROJECT_ROOT, 'ffctl.py'), 'list'], 
                                capture_output=True, text=True, timeout=10)
         assert result.returncode == 0
         assert 'llm_analysis_enabled' in result.stdout
@@ -335,7 +336,7 @@ def test_report_generation():
         results.append(("ReportGenerationSkill", False, str(e)))
     
     # 检查现有报告
-    reports_dir = "/workspace/outputs/reports"
+    reports_dir = os.path.join(PROJECT_ROOT, "outputs/reports")
     if os.path.exists(reports_dir):
         report_files = os.listdir(reports_dir)
         if report_files:
@@ -367,7 +368,7 @@ def test_agent_boot():
     # 测试基础 Agent
     try:
         import subprocess
-        result = subprocess.run(['python', '/workspace/harness_agent.py', '--help'], 
+        result = subprocess.run(['python', os.path.join(PROJECT_ROOT, 'scripts/harness_agent.py'), '--help'], 
                                capture_output=True, text=True, timeout=10)
         assert result.returncode == 0
         results.append(("HarnessAgent", True, "基础Agent可正常启动"))
@@ -377,7 +378,7 @@ def test_agent_boot():
     # 测试高级 Agent
     try:
         import subprocess
-        result = subprocess.run(['python', '/workspace/harness_agent_advanced.py', '--help'], 
+        result = subprocess.run(['python', os.path.join(PROJECT_ROOT, 'scripts/harness_agent_advanced.py'), '--help'], 
                                capture_output=True, text=True, timeout=10)
         assert result.returncode == 0
         results.append(("HarnessAgentAdvanced", True, "高级Agent可正常启动"))
@@ -452,11 +453,11 @@ def main():
     generate_summary_report(all_results)
     
     print("\n📚 相关文档：")
-    print("  - [README.md](file:///workspace/README.md) - 项目说明")
-    print("  - [AGENTS.md](file:///workspace/AGENTS.md) - 架构文档")
-    print("  - [CHANGELOG.md](file:///workspace/CHANGELOG.md) - 变更记录")
-    print("  - [HIGH_QUALITY_ANALYSIS_GUIDE.md](file:///workspace/HIGH_QUALITY_ANALYSIS_GUIDE.md) - 高质量分析指南")
-    print("  - [QMD_IMPACT_EVALUATION.md](file:///workspace/QMD_IMPACT_EVALUATION.md) - QMD 集成价值评估")
+    print(f"  - [README.md](file://{PROJECT_ROOT}/README.md) - 项目说明")
+    print(f"  - [AGENTS.md](file://{PROJECT_ROOT}/AGENTS.md) - 架构文档")
+    print(f"  - [CHANGELOG.md](file://{PROJECT_ROOT}/CHANGELOG.md) - 变更记录")
+    print(f"  - [HIGH_QUALITY_ANALYSIS_GUIDE.md](file://{PROJECT_ROOT}/HIGH_QUALITY_ANALYSIS_GUIDE.md) - 高质量分析指南")
+    print(f"  - [QMD_IMPACT_EVALUATION.md](file://{PROJECT_ROOT}/QMD_IMPACT_EVALUATION.md) - QMD 集成价值评估")
     print()
     
     return 0 if all(r[1] for r in all_results) else 1

@@ -6,7 +6,7 @@ import sys
 import os
 import tempfile
 import shutil
-sys.path.insert(0, '/workspace')
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from harness.core.feature_flags import (
     FeatureFlag,

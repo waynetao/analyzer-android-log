@@ -4,7 +4,7 @@
 """
 import os
 import sys
-sys.path.insert(0, '/workspace')
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from log_analyzer.aloggrep_wrapper import ALogGrep, LogLevel
 from harness.skills.log_extraction_aloggrep import (

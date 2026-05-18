@@ -4,7 +4,7 @@
 """
 import sys
 import os
-sys.path.insert(0, '/workspace')
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from harness.skills.log_evidence_matcher import LogEvidenceMatcherSkill, TimelineBuilderSkill
 from harness.skills.report import ReportGenerationSkill

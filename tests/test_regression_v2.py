@@ -4,7 +4,8 @@
 """
 import os
 import sys
-sys.path.insert(0, '/workspace')
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PROJECT_ROOT)
 
 def test_core_system():
     """测试 Harness 核心系统"""
@@ -178,7 +179,7 @@ def test_agents():
     
     try:
         # 基础 Agent
-        with open('/workspace/harness_agent.py', 'r') as f:
+        with open(os.path.join(PROJECT_ROOT, 'scripts/harness_agent.py'), 'r') as f:
             content = f.read()
             assert 'Orchestrator' in content
             assert 'LogExtractionSkill' in content
@@ -261,8 +262,8 @@ def test_skill_files():
     results = []
     
     files_to_check = [
-        ("SKILL.md", "/workspace/.claude/skills/loggrep-analyzer/SKILL.md"),
-        ("commands.md", "/workspace/.claude/skills/loggrep-analyzer/references/commands.md"),
+        ("SKILL.md", os.path.join(PROJECT_ROOT, ".claude/skills/loggrep-analyzer/SKILL.md")),
+        ("commands.md", os.path.join(PROJECT_ROOT, ".claude/skills/loggrep-analyzer/references/commands.md")),
     ]
     
     for name, path in files_to_check:

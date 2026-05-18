@@ -5,7 +5,8 @@ QMD 知识库集成测试脚本
 """
 import os
 import sys
-sys.path.insert(0, '/workspace')
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PROJECT_ROOT)
 
 def test_knowledge_base_structure():
     """测试知识库目录结构"""
@@ -52,7 +53,7 @@ def test_knowledge_base_structure():
                 if not os.path.isfile(full_path):
                     errors.append(f"缺少文件: {full_path}")
     
-    check_path("/workspace", expected_structure)
+    check_path(PROJECT_ROOT, expected_structure)
     
     if errors:
         for error in errors:
@@ -129,11 +130,11 @@ def test_document_content():
     print("=" * 60)
     
     docs_to_check = [
-        "/workspace/knowledge_base/android_knowledge/event_log_tags/system_tags.md",
-        "/workspace/knowledge_base/android_knowledge/anr_tombstone/anr_format.md",
-        "/workspace/knowledge_base/android_knowledge/dumpsys/meminfo_sop.md",
-        "/workspace/knowledge_base/android_knowledge/sysprops/critical_props.md",
-        "/workspace/knowledge_base/android_knowledge/gc_logs/format_parsing.md"
+        os.path.join(PROJECT_ROOT, "knowledge_base/android_knowledge/event_log_tags/system_tags.md"),
+        os.path.join(PROJECT_ROOT, "knowledge_base/android_knowledge/anr_tombstone/anr_format.md"),
+        os.path.join(PROJECT_ROOT, "knowledge_base/android_knowledge/dumpsys/meminfo_sop.md"),
+        os.path.join(PROJECT_ROOT, "knowledge_base/android_knowledge/sysprops/critical_props.md"),
+        os.path.join(PROJECT_ROOT, "knowledge_base/android_knowledge/gc_logs/format_parsing.md")
     ]
     
     all_valid = True
@@ -159,7 +160,7 @@ def test_agent_integration():
     
     try:
         # 检查导入
-        with open('/workspace/harness_agent_advanced.py', 'r') as f:
+        with open(os.path.join(PROJECT_ROOT, 'scripts/harness_agent_advanced.py'), 'r') as f:
             content = f.read()
             assert 'KnowledgeRetrievalSkill' in content
             assert 'from harness.skills.knowledge_retrieval import' in content
