@@ -21,13 +21,14 @@ class LogExtractor:
         return abs_target.startswith(abs_extract + os.sep) or abs_target == abs_extract
 
     def extract(self, file_path: str) -> str:
-        if zipfile.is_zipfile(file_path):
+        # 优先判断目录，避免 tarfile.is_tarfile 尝试 open() 目录导致 PermissionError
+        if os.path.isdir(file_path):
+            # 如果是目录，自动解压目录中的所有压缩包
+            return self._extract_directory(file_path)
+        elif zipfile.is_zipfile(file_path):
             return self._extract_zip(file_path)
         elif tarfile.is_tarfile(file_path):
             return self._extract_tar(file_path)
-        elif os.path.isdir(file_path):
-            # 如果是目录，自动解压目录中的所有压缩包
-            return self._extract_directory(file_path)
         else:
             # 单个文件，直接返回其所在目录
             return os.path.dirname(os.path.abspath(file_path))
