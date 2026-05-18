@@ -1,0 +1,75 @@
+# Android Log Analyzer - 配置文件
+# 支持多环境配置（dev/staging/prod）
+
+environments:
+  # 开发环境配置
+  dev:
+    description: 开发环境配置
+    llm_api_key: null  # 从 .env 文件读取
+    llm_base_url: null
+    llm_model: gpt-4o-mini
+    llm_temperature: 0.7
+    llm_max_tokens: 2000
+    llm_max_retries: 3
+    log_level: DEBUG
+    log_enable_file: false
+    log_enable_console: true
+    memory_mode: simple  # simple 或 openviking
+    analysis_mode: deep  # fast/standard/deep
+    feature_flags:
+      llm_analysis_enabled: true
+      aloggrep_integration: true
+      knowledge_base_enabled: true
+      evidence_matching_enabled: true
+      bug_type_optimization_enabled: true
+      memory_system_enabled: true
+      similar_case_retrieval: true
+      auto_save_cases: true
+
+  # 预发布环境配置
+  staging:
+    description: 预发布环境配置
+    llm_api_key: null
+    llm_base_url: null
+    llm_model: gpt-4o-mini
+    llm_temperature: 0.5
+    llm_max_tokens: 3000
+    llm_max_retries: 3
+    log_level: INFO
+    log_enable_file: true
+    log_enable_console: true
+    memory_mode: simple
+    analysis_mode: standard
+    feature_flags:
+      llm_analysis_enabled: true
+      aloggrep_integration: true
+      knowledge_base_enabled: true
+      evidence_matching_enabled: true
+      bug_type_optimization_enabled: true
+      memory_system_enabled: true
+      similar_case_retrieval: true
+      auto_save_cases: false
+
+  # 生产环境配置
+  prod:
+    description: 生产环境配置
+    llm_api_key: null
+    llm_base_url: null
+    llm_model: gpt-4o
+    llm_temperature: 0.3
+    llm_max_tokens: 4000
+    llm_max_retries: 5
+    log_level: WARNING
+    log_enable_file: true
+    log_enable_console: false
+    memory_mode: openviking
+    analysis_mode: standard
+    feature_flags:
+      llm_analysis_enabled: true
+      aloggrep_integration: false
+      knowledge_base_enabled: true
+      evidence_matching_enabled: true
+      bug_type_optimization_enabled: true
+      memory_system_enabled: true
+      similar_case_retrieval: true
+      auto_save_cases: true

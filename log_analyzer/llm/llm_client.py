@@ -1,7 +1,9 @@
 import os
 import json
-from typing import Optional, Dict, Any
+import time
+from typing import Optional, Dict, Any, Tuple
 from openai import OpenAI
+from openai import RateLimitError, Timeout, APIError, APIConnectionError
 
 from harness.core.logging import get_logger
 
@@ -9,11 +11,15 @@ logger = get_logger(__name__)
 
 
 class LLMClient:
+    """LLM 客户端 - 支持重试机制和降级方案"""
+
     def __init__(
         self,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
-        model: str = None
+        model: str = None,
+        max_retries: int = None,
+        timeout: float = None
     ):
         # 支持 LLM_ 前缀（新）和 OPENAI_ 前缀（向后兼容）
         self.api_key = api_key or os.environ.get("LLM_API_KEY") or os.environ.get("OPENAI_API_KEY")
@@ -21,6 +27,10 @@ class LLMClient:
         self.model = model or os.environ.get("LLM_MODEL") or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
         self.temperature = float(os.environ.get("LLM_TEMPERATURE", "0.7"))
         self.max_tokens = int(os.environ.get("LLM_MAX_TOKENS", "2000"))
+
+        # 重试配置
+        self.max_retries = max_retries if max_retries is not None else int(os.environ.get("LLM_MAX_RETRIES", "3"))
+        self.timeout = timeout if timeout is not None else float(os.environ.get("LLM_TIMEOUT", "60.0"))
 
         # 初始化客户端（只在有 API Key 时）
         self.client = None
@@ -30,11 +40,13 @@ class LLMClient:
             try:
                 self.client = OpenAI(
                     api_key=self.api_key,
-                    base_url=self.base_url
+                    base_url=self.base_url,
+                    timeout=self.timeout
                 )
                 self.use_mock = False
+                logger.info(f"LLM 客户端初始化成功 - 模型: {self.model}")
             except Exception as e:
-                logger.warning(f"Failed to initialize LLM client: {e}")
+                logger.warning(f"LLM 客户端初始化失败: {e}")
                 print("警告：LLM 客户端初始化失败，将使用模拟模式")
 
         if self.use_mock:
@@ -45,29 +57,120 @@ class LLMClient:
         system_prompt: str,
         user_prompt: str,
         temperature: float = None,
-        max_tokens: int = None
+        max_tokens: int = None,
+        enable_retry: bool = True
     ) -> str:
-        # 使用实例默认值，或者传入的参数
+        """调用 LLM API，带重试机制"""
         temp = temperature if temperature is not None else self.temperature
         max_t = max_tokens if max_tokens is not None else self.max_tokens
-        
+
         if self.use_mock:
             return self._mock_response(system_prompt, user_prompt)
-        
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                temperature=temp,
-                max_tokens=max_t
+
+        if enable_retry:
+            return self._chat_completion_with_retry(
+                system_prompt, user_prompt, temp, max_t
             )
-            return response.choices[0].message.content
+        else:
+            return self._chat_completion_once(
+                system_prompt, user_prompt, temp, max_t
+            )
+
+    def _chat_completion_with_retry(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        temperature: float,
+        max_tokens: int
+    ) -> str:
+        """带重试机制的 LLM 调用"""
+        last_error = None
+
+        for attempt in range(self.max_retries):
+            try:
+                return self._do_api_call(system_prompt, user_prompt, temperature, max_tokens)
+
+            except RateLimitError as e:
+                last_error = e
+                wait_time = self._get_retry_delay(attempt, e)
+                logger.warning(
+                    f"LLM API 限流 (尝试 {attempt + 1}/{self.max_retries}): {e}, "
+                    f"等待 {wait_time:.1f}秒后重试..."
+                )
+                if attempt < self.max_retries - 1:
+                    time.sleep(wait_time)
+
+            except (APIError, APIConnectionError, Timeout) as e:
+                last_error = e
+                wait_time = self._get_retry_delay(attempt, e)
+                logger.warning(
+                    f"LLM API 错误 (尝试 {attempt + 1}/{self.max_retries}): {e}, "
+                    f"等待 {wait_time:.1f}秒后重试..."
+                )
+                if attempt < self.max_retries - 1:
+                    time.sleep(wait_time)
+
+            except Exception as e:
+                logger.error(f"LLM 调用失败: {e}")
+                return self._mock_response(system_prompt, user_prompt)
+
+        logger.error(f"LLM API 调用失败，已达到最大重试次数 ({self.max_retries})")
+        return self._mock_response(system_prompt, user_prompt)
+
+    def _chat_completion_once(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        temperature: float,
+        max_tokens: int
+    ) -> str:
+        """单次 LLM 调用"""
+        try:
+            return self._do_api_call(system_prompt, user_prompt, temperature, max_tokens)
         except Exception as e:
-            print(f"LLM 调用失败: {e}")
+            logger.error(f"LLM 调用失败: {e}")
             return self._mock_response(system_prompt, user_prompt)
+
+    def _do_api_call(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        temperature: float,
+        max_tokens: int
+    ) -> str:
+        """执行实际的 API 调用"""
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=temperature,
+            max_tokens=max_tokens
+        )
+        return response.choices[0].message.content
+
+    def _get_retry_delay(self, attempt: int, error: Exception) -> float:
+        """计算重试延迟时间"""
+        base_delay = 1.0
+
+        # 速率限制错误通常需要更长的等待时间
+        if isinstance(error, RateLimitError):
+            base_delay = 5.0
+            if hasattr(error, 'response'):
+                retry_after = error.response.headers.get('retry-after')
+                if retry_after:
+                    return float(retry_after)
+
+        # 指数退避
+        delay = base_delay * (2 ** attempt)
+
+        # 添加随机抖动
+        import random
+        delay = delay * (0.5 + random.random())
+
+        # 最大延迟 60 秒
+        return min(delay, 60.0)
 
     def _mock_response(self, system_prompt: str, user_prompt: str) -> str:
         """模拟响应，用于开发测试"""
