@@ -49,6 +49,8 @@ logs/
 *.tmp
 *.bak
 *.cache
+temp
+outputs
 
 # OS
 .DS_Store
