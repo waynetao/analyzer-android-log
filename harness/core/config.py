@@ -26,7 +26,7 @@ class EnvironmentConfig:
     name: str
     llm_api_key: Optional[str] = None
     llm_base_url: Optional[str] = None
-    llm_model: str = "gpt-4o-mini"
+    llm_model: str = ""
     llm_temperature: float = 0.7
     llm_max_tokens: int = 2000
     llm_max_retries: int = 3
@@ -92,7 +92,7 @@ class ConfigManager:
                 name=env_name,
                 llm_api_key=env_data.get("llm_api_key"),
                 llm_base_url=env_data.get("llm_base_url"),
-                llm_model=env_data.get("llm_model", "gpt-4o-mini"),
+                llm_model=env_data.get("llm_model", ""),
                 llm_temperature=float(env_data.get("llm_temperature", 0.7)),
                 llm_max_tokens=int(env_data.get("llm_max_tokens", 2000)),
                 llm_max_retries=int(env_data.get("llm_max_retries", 3)),
@@ -111,7 +111,7 @@ class ConfigManager:
                 name="dev",
                 llm_api_key=default_config.get("llm_api_key"),
                 llm_base_url=default_config.get("llm_base_url"),
-                llm_model=default_config.get("llm_model", "gpt-4o-mini")
+                llm_model=default_config.get("llm_model", "")
             )
 
     def _load_from_env(self):

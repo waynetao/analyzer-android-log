@@ -364,8 +364,8 @@ def main():
         "--base-url", help="OpenAI API Base URL"
     )
     parser.add_argument(
-        "--model", default="gpt-4o-mini",
-        help="使用的LLM模型"
+        "--model", default=None,
+        help="使用的LLM模型（默认读取 .env 配置）"
     )
     parser.add_argument(
         "--list-cases", action="store_true",

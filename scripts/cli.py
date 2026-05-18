@@ -356,7 +356,7 @@ def _add_full_subparser(subparsers):
     full_parser.add_argument("--format", "-f", default="markdown", choices=["markdown", "html", "json", "all"], help="输出格式")
     full_parser.add_argument("--api-key", help="OpenAI API Key")
     full_parser.add_argument("--base-url", help="OpenAI API Base URL")
-    full_parser.add_argument("--model", default="gpt-4o-mini", help="使用的LLM模型")
+    full_parser.add_argument("--model", default=None, help="使用的LLM模型（默认读取 .env 配置）")
 
 
 def _add_plan_subparser(subparsers):
@@ -367,7 +367,7 @@ def _add_plan_subparser(subparsers):
     plan_parser.add_argument("--name", default="bug_analysis", help="工作流名称")
     plan_parser.add_argument("--api-key", help="OpenAI API Key")
     plan_parser.add_argument("--base-url", help="OpenAI API Base URL")
-    plan_parser.add_argument("--model", default="gpt-4o-mini", help="使用的LLM模型")
+    plan_parser.add_argument("--model", default=None, help="使用的LLM模型（默认读取 .env 配置）")
 
 
 def _add_build_subparser(subparsers):
