@@ -47,13 +47,35 @@ class BaseSkill(ABC):
 class LLMBasedSkill(BaseSkill):
     """LLM技能基类 - 封装通用的LLM初始化逻辑"""
     
-    def __init__(self, api_key: str = None, base_url: str = None, model: str = None):
-        # 支持 LLM_ 前缀（新）和 OPENAI_ 前缀（向后兼容）
-        self.api_key = api_key or os.environ.get("LLM_API_KEY") or os.environ.get("OPENAI_API_KEY", "")
-        self.base_url = base_url or os.environ.get("LLM_BASE_URL") or os.environ.get("OPENAI_BASE_URL", "")
-        self.model = model or os.environ.get("LLM_MODEL") or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
-        self.temperature = float(os.environ.get("LLM_TEMPERATURE", "0.7"))
-        self.max_tokens = int(os.environ.get("LLM_MAX_TOKENS", "2000"))
+    def __init__(self, api_key: str = None, base_url: str = None, model: str = None, scene: str = None):
+        """
+        初始化LLM技能
+        
+        Args:
+            api_key: LLM API Key（可选，优先使用）
+            base_url: LLM Base URL（可选，优先使用）
+            model: LLM 模型名称（可选，优先使用）
+            scene: 场景名称（用于从环境变量读取场景特定配置）
+                   例如: "analysis", "bug_parser", "report"
+        """
+        self.scene = scene
+        
+        # 支持场景特定配置 + LLM_ 前缀 + OPENAI_ 前缀（向后兼容）
+        if scene:
+            # 场景特定配置优先级最高
+            self.api_key = api_key or os.environ.get(f"LLM_{scene.upper()}_API_KEY") or os.environ.get("LLM_API_KEY") or os.environ.get("OPENAI_API_KEY", "")
+            self.base_url = base_url or os.environ.get(f"LLM_{scene.upper()}_BASE_URL") or os.environ.get("LLM_BASE_URL") or os.environ.get("OPENAI_BASE_URL", "")
+            self.model = model or os.environ.get(f"LLM_{scene.upper()}_MODEL") or os.environ.get("LLM_MODEL") or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+            self.temperature = float(os.environ.get(f"LLM_{scene.upper()}_TEMPERATURE", os.environ.get("LLM_TEMPERATURE", "0.7")))
+            self.max_tokens = int(os.environ.get(f"LLM_{scene.upper()}_MAX_TOKENS", os.environ.get("LLM_MAX_TOKENS", "2000")))
+        else:
+            # 无场景时使用通用配置
+            self.api_key = api_key or os.environ.get("LLM_API_KEY") or os.environ.get("OPENAI_API_KEY", "")
+            self.base_url = base_url or os.environ.get("LLM_BASE_URL") or os.environ.get("OPENAI_BASE_URL", "")
+            self.model = model or os.environ.get("LLM_MODEL") or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+            self.temperature = float(os.environ.get("LLM_TEMPERATURE", "0.7"))
+            self.max_tokens = int(os.environ.get("LLM_MAX_TOKENS", "2000"))
+        
         self.client: Optional[Any] = None
         self.use_mock = True
         

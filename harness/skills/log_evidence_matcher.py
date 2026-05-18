@@ -20,7 +20,7 @@ class LogEvidenceMatcherSkill(LLMBasedSkill):
         return "log_evidence_matcher"
 
     def __init__(self, api_key: str = None, base_url: str = None, model: str = None):
-        super().__init__(api_key, base_url, model)
+        super().__init__(api_key, base_url, model, scene="evidence_matcher")
     
     def execute(self, inputs: Dict[str, Any]) -> SkillResult:
         valid, msg = self._validate_inputs(inputs, ["bug_description", "critical_logs", "device_state"])

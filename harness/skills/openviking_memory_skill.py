@@ -17,6 +17,16 @@ class OpenVikingMemorySkill(BaseSkill):
     """
     OpenViking 记忆系统 Skill
     与 CaseLibrarySkill 保持相同接口，可通过 Feature Flag 切换
+    
+    支持通过环境变量配置嵌入模型和 VLM 模型：
+    - OPENVIKING_EMBEDDING_BACKEND: 嵌入模型后端（如 volcengine）
+    - OPENVIKING_EMBEDDING_API_KEY: 嵌入模型 API Key
+    - OPENVIKING_EMBEDDING_MODEL: 嵌入模型名称
+    - OPENVIKING_EMBEDDING_API_BASE: 嵌入模型 API 地址
+    - OPENVIKING_VLM_BACKEND: VLM 后端（如 volcengine）
+    - OPENVIKING_VLM_API_KEY: VLM API Key
+    - OPENVIKING_VLM_MODEL: VLM 模型名称
+    - OPENVIKING_VLM_API_BASE: VLM API 地址
     """
 
     @property
@@ -27,6 +37,19 @@ class OpenVikingMemorySkill(BaseSkill):
         self.feature_sdk = None
         self.viking_client = None
         self.is_available = False
+        
+        # 读取 OpenViking 配置（从环境变量）
+        self.embedding_backend = os.environ.get("OPENVIKING_EMBEDDING_BACKEND", "")
+        self.embedding_api_key = os.environ.get("OPENVIKING_EMBEDDING_API_KEY", "")
+        self.embedding_model = os.environ.get("OPENVIKING_EMBEDDING_MODEL", "")
+        self.embedding_api_base = os.environ.get("OPENVIKING_EMBEDDING_API_BASE", "")
+        
+        self.vlm_backend = os.environ.get("OPENVIKING_VLM_BACKEND", "")
+        self.vlm_api_key = os.environ.get("OPENVIKING_VLM_API_KEY", "")
+        self.vlm_model = os.environ.get("OPENVIKING_VLM_MODEL", "")
+        self.vlm_api_base = os.environ.get("OPENVIKING_VLM_API_BASE", "")
+        self.vlm_temperature = float(os.environ.get("OPENVIKING_VLM_TEMPERATURE", "0.1"))
+        
         # 自动计算项目根目录
         if workspace_path is None:
             project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -40,6 +63,10 @@ class OpenVikingMemorySkill(BaseSkill):
         """
         初始化 OpenViking
         如果 OpenViking 不可用，设置标记，允许降级使用
+        
+        支持配置：
+        - embedding: 嵌入模型（用于语义搜索）
+        - vlm: 视觉语言模型（用于多模态处理）
         """
         try:
             import openviking
@@ -48,8 +75,53 @@ class OpenVikingMemorySkill(BaseSkill):
             # 创建工作目录
             Path(self.workspace_path).mkdir(parents=True, exist_ok=True)
 
-            # 初始化客户端
-            self.viking_client = OpenViking(path=self.workspace_path)
+            # 构建配置字典
+            config = {
+                "storage": {
+                    "workspace": self.workspace_path
+                },
+                "log": {
+                    "level": "INFO",
+                    "output": "stdout"
+                }
+            }
+
+            # 添加嵌入模型配置（如果有）
+            if self.embedding_backend:
+                config["embedding"] = {
+                    "dense": {
+                        "backend": self.embedding_backend,
+                        "api_key": self.embedding_api_key,
+                        "model": self.embedding_model,
+                        "api_base": self.embedding_api_base,
+                        "dimension": 1024,
+                        "input": "multimodal"
+                    }
+                }
+                print(f"📦 OpenViking: 使用嵌入模型 {self.embedding_model}")
+
+            # 添加 VLM 配置（如果有）
+            if self.vlm_backend:
+                config["vlm"] = {
+                    "backend": self.vlm_backend,
+                    "api_key": self.vlm_api_key,
+                    "model": self.vlm_model,
+                    "api_base": self.vlm_api_base,
+                    "temperature": self.vlm_temperature,
+                    "max_retries": 3
+                }
+                print(f"📦 OpenViking: 使用 VLM 模型 {self.vlm_model}")
+
+            # 初始化客户端（支持配置参数）
+            try:
+                # 尝试带配置初始化
+                self.viking_client = OpenViking(path=self.workspace_path, config=config)
+            except TypeError:
+                # 如果 OpenViking SDK 不支持 config 参数，使用基础初始化
+                self.viking_client = OpenViking(path=self.workspace_path)
+                if self.embedding_backend or self.vlm_backend:
+                    print("⚠️  OpenViking SDK 版本不支持配置参数，跳过模型配置")
+            
             self.is_available = True
             print("✅ OpenVikingMemorySkill: OpenViking 已成功初始化")
 

@@ -98,7 +98,74 @@ alg -f app.log --format json --fields t,l,T,m --limit 100
 
 ---
 
-### 2. Rust/Cargo（仅用于安装 aloggrep）
+### 2. OpenViking ⭐ 可选但推荐
+
+**OpenViking** 是一个分层记忆系统，用于更高效的案例存储和检索。
+
+**官网文档**：https://www.volcengine.com/docs/82379/2288685?lang=zh
+
+**安装方式**：
+```bash
+pip install openviking
+```
+
+**项目配置**：
+在 Feature Flag 中启用 OpenViking 模式（`config/feature_flags.yaml`）：
+```yaml
+memory_mode:
+  default_value: openviking
+```
+
+**模型配置（可选）**：
+OpenViking 支持两种模型配置，在 `.env` 文件中添加：
+
+```bash
+# 嵌入模型配置（用于语义搜索）
+OPENVIKING_EMBEDDING_BACKEND=volcengine
+OPENVIKING_EMBEDDING_API_KEY=<ARK_API_KEY>
+OPENVIKING_EMBEDDING_MODEL=doubao-embedding-vision
+OPENVIKING_EMBEDDING_API_BASE=https://ark.cn-beijing.volces.com/api/coding/v3
+
+# VLM 模型配置（用于多模态处理）
+OPENVIKING_VLM_BACKEND=volcengine
+OPENVIKING_VLM_API_KEY=<ARK_API_KEY>
+OPENVIKING_VLM_MODEL=doubao-seed-2.0-pro
+OPENVIKING_VLM_API_BASE=https://ark.cn-beijing.volces.com/api/coding/v3
+OPENVIKING_VLM_TEMPERATURE=0.1
+```
+
+**功能说明**：
+- 分层存储（L0/L1/L2），优化检索效率
+- 自动语义相似度匹配
+- 支持标签和类型分类
+- 支持多模态嵌入（文本+图像）
+
+---
+
+### 3. QMD Server ⭐ 可选但推荐
+
+**QMD (Knowledge Base)** 是一个知识库服务器，用于存储和检索 Android 开发相关的知识。
+
+**安装方式**（Docker 部署）：
+```bash
+# QMD 是独立项目，需要单独部署
+# 请参考 QMD 项目文档进行 Docker 部署
+```
+
+**配置**：
+在 `.env` 文件中添加：
+```bash
+QMD_SERVER_URL=http://localhost:8000
+```
+
+**功能说明**：
+- 提供 Android 开发知识库（ANR、崩溃、日志格式等）
+- 支持语义检索和知识增强
+- 通过 REST API 访问
+
+---
+
+### 4. Rust/Cargo（仅用于安装 aloggrep）
 
 如果选择通过 Cargo 安装 aloggrep，则需要安装 Rust。
 

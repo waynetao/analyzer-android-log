@@ -26,7 +26,7 @@ class BugDescriptionParserSkill(LLMBasedSkill):
         return "bug_desc_parser"
 
     def __init__(self, api_key: str = None, base_url: str = None, model: str = None):
-        super().__init__(api_key, base_url, model)
+        super().__init__(api_key, base_url, model, scene="bug_parser")
     
     def execute(self, inputs: Dict[str, Any]) -> SkillResult:
         valid, msg = self._validate_inputs(inputs, ["bug_text"])
@@ -122,7 +122,7 @@ class LogFilterSkill(LLMBasedSkill):
         return "log_filter"
 
     def __init__(self, api_key: str = None, base_url: str = None, model: str = None):
-        super().__init__(api_key, base_url, model)
+        super().__init__(api_key, base_url, model, scene="log_filter")
     
     def execute(self, inputs: Dict[str, Any]) -> SkillResult:
         valid, msg = self._validate_inputs(inputs, ["bug_description", "log_entries"])
@@ -209,7 +209,7 @@ class ExceptionClassifierSkill(LLMBasedSkill):
         return "exception_classifier"
 
     def __init__(self, api_key: str = None, base_url: str = None, model: str = None):
-        super().__init__(api_key, base_url, model)
+        super().__init__(api_key, base_url, model, scene="exception_classifier")
     
     def execute(self, inputs: Dict[str, Any]) -> SkillResult:
         valid, msg = self._validate_inputs(inputs, ["exceptions"])

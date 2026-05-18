@@ -97,12 +97,37 @@ python scripts/harness_agent_advanced.py --bug "my_bug.txt" --log "test_log.txt"
 
 ### 1. 配置 .env 文件（可选）
 
+#### 基础配置
+
 创建 `.env` 文件在项目根目录，配置 LLM：
 ```
-OPENAI_API_KEY=your_api_key_here
-OPENAI_BASE_URL=https://api.openai.com/v1
-OPENAI_MODEL=gpt-4o-mini
+LLM_API_KEY=your_api_key_here
+LLM_BASE_URL=https://api.openai.com/v1
+LLM_MODEL=gpt-4o-mini
 ```
+
+#### 场景定制（高级功能）
+
+你可以为不同的分析场景配置不同的模型！支持的场景：
+- `analysis`: LLM 高级分析（复杂推理）
+- `bug_parser`: Bug 描述解析
+- `log_filter`: 智能日志过滤
+- `exception_classifier`: 异常分类
+- `evidence_matcher`: 日志证据匹配
+
+示例配置（在 `.env` 中添加）：
+```
+# 分析场景用更强大的模型
+LLM_ANALYSIS_API_KEY=your_api_key
+LLM_ANALYSIS_MODEL=gpt-4o
+LLM_ANALYSIS_MAX_TOKENS=4000
+
+# Bug 解析用更快更便宜的模型
+LLM_BUG_PARSER_MODEL=gpt-4o-mini
+LLM_BUG_PARSER_TEMPERATURE=0.3
+```
+
+更多预定义模型配置请参考 [.env.example](./.env.example)
 
 ### 2. 如果没有 LLM
 

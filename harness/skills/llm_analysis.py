@@ -20,7 +20,7 @@ class LLMAnalysisSkill(LLMBasedSkill):
         return "llm_analysis"
     
     def __init__(self, api_key: str = None, base_url: str = None, model: str = None, enable_bug_type_optimization: bool = True):
-        super().__init__(api_key, base_url, model)
+        super().__init__(api_key, base_url, model, scene="analysis")
         self.enable_bug_type_optimization = enable_bug_type_optimization
         
         if not self.use_mock:
