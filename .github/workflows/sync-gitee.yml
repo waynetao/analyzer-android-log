@@ -1,33 +1,15 @@
-name: Sync GitHub To Gitee
+steps:
+  - name: Checkout
+    uses: actions/checkout@v4
+    with:
+      fetch-depth: 0
 
-on:
-  # 1. 提交触发：代码推送到 main/master 分支时自动同步
-  push:
-    branches: [ main, master ]
-  # 2. 手动触发：在 Actions 页面可点击按钮运行
-  workflow_dispatch:
-
-jobs:
-  mirror:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      # 👇 新增的 Debug 调试步骤，帮你一眼定位问题
-      - name: Debug Info
-        run: |
-          echo "===== 关键信息核对 ====="
-          echo "GitHub 仓库: ${{ github.repository }}"
-          echo "Gitee 用户名: ${{ secrets.GITEE_USER }}"
-          echo "目标 Gitee 仓库: ${{ github.event.repository.name }}"
-          echo "Gitee 令牌是否存在: ${{ secrets.GITEE_TOKEN != '' }}"
-
-      - name: Sync to Gitee
-        uses: Yikun/hub-mirror-action@master
-        with:
-          src: github/${{ github.repository }}
-          dst: gitee/${{ secrets.GITEE_USER }}/${{ github.event.repository.name }}
-          dst_token: ${{ secrets.GITEE_TOKEN }}
+  - name: Mirror to Gitee
+    uses: Yikun/hub-mirror-action@master
+    with:
+      src: github/${{ github.repository_owner }}
+      dst: gitee/${{ secrets.GITEE_USER }}
+      dst_token: ${{ secrets.GITEE_TOKEN }}
+      repos: ${{ github.event.repository.name }}
+      force_update: true
+      debug: true
