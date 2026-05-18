@@ -324,69 +324,15 @@ def main():
     
     subparsers = parser.add_subparsers(title="命令", dest="command")
     
-    # ============ full 命令 ============
-    full_parser = subparsers.add_parser("full", help="执行完整工作流分析")
-    full_parser.add_argument("--bug", "-b", required=True, help="Bug描述文本或文件")
-    full_parser.add_argument("--log", "-l", required=True, help="日志文件/目录路径")
-    full_parser.add_argument("--format", "-f", default="markdown", choices=["markdown", "html", "json", "all"], help="输出格式")
-    full_parser.add_argument("--api-key", help="OpenAI API Key")
-    full_parser.add_argument("--base-url", help="OpenAI API Base URL")
-    full_parser.add_argument("--model", default="gpt-4o-mini", help="使用的LLM模型")
-    
-    # ============ plan 命令 ============
-    plan_parser = subparsers.add_parser("plan", help="仅执行 PLAN 阶段（输入验证）")
-    plan_parser.add_argument("--bug", "-b", required=True, help="Bug描述文本或文件")
-    plan_parser.add_argument("--log", "-l", required=True, help="日志文件/目录路径")
-    plan_parser.add_argument("--name", default="bug_analysis", help="工作流名称")
-    plan_parser.add_argument("--api-key", help="OpenAI API Key")
-    plan_parser.add_argument("--base-url", help="OpenAI API Base URL")
-    plan_parser.add_argument("--model", default="gpt-4o-mini", help="使用的LLM模型")
-    
-    # ============ build 命令 ============
-    build_parser = subparsers.add_parser("build", help="从当前状态执行 BUILD 阶段")
-    build_parser.add_argument("--workflow-id", "-w", required=True, help="工作流ID")
-    build_parser.add_argument("--api-key", help="OpenAI API Key")
-    build_parser.add_argument("--base-url", help="OpenAI API Base URL")
-    build_parser.add_argument("--model", default="gpt-4o-mini", help="使用的LLM模型")
-    
-    # ============ verify 命令 ============
-    verify_parser = subparsers.add_parser("verify", help="从当前状态执行 VERIFY 阶段")
-    verify_parser.add_argument("--workflow-id", "-w", required=True, help="工作流ID")
-    verify_parser.add_argument("--api-key", help="OpenAI API Key")
-    verify_parser.add_argument("--base-url", help="OpenAI API Base URL")
-    verify_parser.add_argument("--model", default="gpt-4o-mini", help="使用的LLM模型")
-    
-    # ============ fix 命令 ============
-    fix_parser = subparsers.add_parser("fix", help="从当前状态执行 FIX 阶段")
-    fix_parser.add_argument("--workflow-id", "-w", required=True, help="工作流ID")
-    fix_parser.add_argument("--api-key", help="OpenAI API Key")
-    fix_parser.add_argument("--base-url", help="OpenAI API Base URL")
-    fix_parser.add_argument("--model", default="gpt-4o-mini", help="使用的LLM模型")
-    
-    # ============ resume 命令 ============
-    resume_parser = subparsers.add_parser("resume", help="从检查点恢复执行到完成")
-    resume_parser.add_argument("--workflow-id", "-w", required=True, help="工作流ID")
-    resume_parser.add_argument("--api-key", help="OpenAI API Key")
-    resume_parser.add_argument("--base-url", help="OpenAI API Base URL")
-    resume_parser.add_argument("--model", default="gpt-4o-mini", help="使用的LLM模型")
-    
-    # ============ skill 命令 ============
-    skill_parser = subparsers.add_parser("skill", help="技能操作")
-    skill_parser.add_argument("--list", action="store_true", help="列出所有可用技能")
-    skill_parser.add_argument("--name", help="要执行的技能名称")
-    skill_parser.add_argument("--log", help="日志文件路径（技能输入）")
-    skill_parser.add_argument("--bug", help="Bug描述（技能输入）")
-    skill_parser.add_argument("--input-json", help="技能输入JSON文件或字符串")
-    skill_parser.add_argument("--api-key", help="OpenAI API Key")
-    skill_parser.add_argument("--base-url", help="OpenAI API Base URL")
-    skill_parser.add_argument("--model", default="gpt-4o-mini", help="使用的LLM模型")
-    
-    # ============ status 命令 ============
-    status_parser = subparsers.add_parser("status", help="查看工作流状态")
-    status_parser.add_argument("--workflow-id", "-w", required=True, help="工作流ID")
-    
-    # ============ list 命令 ============
-    list_parser = subparsers.add_parser("list", help="列出所有工作流")
+    _add_full_subparser(subparsers)
+    _add_plan_subparser(subparsers)
+    _add_build_subparser(subparsers)
+    _add_verify_subparser(subparsers)
+    _add_fix_subparser(subparsers)
+    _add_resume_subparser(subparsers)
+    _add_skill_subparser(subparsers)
+    _add_status_subparser(subparsers)
+    _add_list_subparser(subparsers)
     
     args = parser.parse_args()
     
@@ -394,103 +340,189 @@ def main():
         parser.print_help()
         return
     
-    # ============ 执行命令 ============
     agent = UnifiedAgent(
         api_key=getattr(args, "api_key", None),
         base_url=getattr(args, "base_url", None),
         model=getattr(args, "model", "gpt-4o-mini")
     )
     
-    if args.command == "full":
-        bug_text = load_bug_text(args.bug)
-        agent.full_analysis(bug_text, args.log, args.format)
+    _dispatch_command(args, agent)
+
+
+def _add_full_subparser(subparsers):
+    full_parser = subparsers.add_parser("full", help="执行完整工作流分析")
+    full_parser.add_argument("--bug", "-b", required=True, help="Bug描述文本或文件")
+    full_parser.add_argument("--log", "-l", required=True, help="日志文件/目录路径")
+    full_parser.add_argument("--format", "-f", default="markdown", choices=["markdown", "html", "json", "all"], help="输出格式")
+    full_parser.add_argument("--api-key", help="OpenAI API Key")
+    full_parser.add_argument("--base-url", help="OpenAI API Base URL")
+    full_parser.add_argument("--model", default="gpt-4o-mini", help="使用的LLM模型")
+
+
+def _add_plan_subparser(subparsers):
+    plan_parser = subparsers.add_parser("plan", help="仅执行 PLAN 阶段（输入验证）")
+    plan_parser.add_argument("--bug", "-b", required=True, help="Bug描述文本或文件")
+    plan_parser.add_argument("--log", "-l", required=True, help="日志文件/目录路径")
+    plan_parser.add_argument("--format", "-f", default="markdown", choices=["markdown", "html", "json", "all"], help="输出格式")
+    plan_parser.add_argument("--name", default="bug_analysis", help="工作流名称")
+    plan_parser.add_argument("--api-key", help="OpenAI API Key")
+    plan_parser.add_argument("--base-url", help="OpenAI API Base URL")
+    plan_parser.add_argument("--model", default="gpt-4o-mini", help="使用的LLM模型")
+
+
+def _add_build_subparser(subparsers):
+    build_parser = subparsers.add_parser("build", help="从当前状态执行 BUILD 阶段")
+    build_parser.add_argument("--workflow-id", "-w", required=True, help="工作流ID")
+
+
+def _add_verify_subparser(subparsers):
+    verify_parser = subparsers.add_parser("verify", help="从当前状态执行 VERIFY 阶段")
+    verify_parser.add_argument("--workflow-id", "-w", required=True, help="工作流ID")
+
+
+def _add_fix_subparser(subparsers):
+    fix_parser = subparsers.add_parser("fix", help="从当前状态执行 FIX 阶段")
+    fix_parser.add_argument("--workflow-id", "-w", required=True, help="工作流ID")
+
+
+def _add_resume_subparser(subparsers):
+    resume_parser = subparsers.add_parser("resume", help="从检查点恢复执行到完成")
+    resume_parser.add_argument("--workflow-id", "-w", required=True, help="工作流ID")
+
+
+def _add_skill_subparser(subparsers):
+    skill_parser = subparsers.add_parser("skill", help="技能操作")
+    skill_parser.add_argument("--list", action="store_true", help="列出所有可用技能")
+    skill_parser.add_argument("--name", help="要执行的技能名称")
+    skill_parser.add_argument("--log", help="日志文件路径（技能输入）")
+    skill_parser.add_argument("--bug", help="Bug描述（技能输入）")
+    skill_parser.add_argument("--input-json", help="技能输入JSON文件或字符串")
+
+
+def _add_status_subparser(subparsers):
+    status_parser = subparsers.add_parser("status", help="查看工作流状态")
+    status_parser.add_argument("--workflow-id", "-w", required=True, help="工作流ID")
+
+
+def _add_list_subparser(subparsers):
+    subparsers.add_parser("list", help="列出所有工作流")
+
+
+def _dispatch_command(args, agent: UnifiedAgent):
+    handlers = {
+        "full": _handle_full,
+        "plan": _handle_plan,
+        "build": _handle_build,
+        "verify": _handle_verify,
+        "fix": _handle_fix,
+        "resume": _handle_resume,
+        "skill": _handle_skill,
+        "status": _handle_status,
+        "list": _handle_list,
+    }
+    handler = handlers.get(args.command)
+    if handler:
+        handler(args, agent)
+
+
+def _handle_full(args, agent: UnifiedAgent):
+    bug_text = load_bug_text(args.bug)
+    agent.full_analysis(bug_text, args.log, args.format)
+    
+    print("\n" + "="*60)
+    print("✅ 完整分析完成!")
+    print("="*60)
+    print(f"报告保存在: {os.path.abspath('outputs/reports')}")
+    print(f"工作流状态保存在: {os.path.abspath('outputs/state')}")
+
+
+def _handle_plan(args, agent: UnifiedAgent):
+    bug_text = load_bug_text(args.bug)
+    bug_desc = agent._parse_bug_description(bug_text)
+    inputs = {
+        "bug_description": bug_desc,
+        "log_path": args.log,
+        "output_format": args.format,
+        "analysis_mode": agent.feature_sdk.get_variant("analysis_mode")
+    }
+    state = agent.orchestrator.plan(args.name, inputs)
+    agent.print_state(state)
+
+
+def _handle_build(args, agent: UnifiedAgent):
+    agent.orchestrator.load_workflow(args.workflow_id)
+    state = agent.orchestrator.build()
+    agent.print_state(state)
+
+
+def _handle_verify(args, agent: UnifiedAgent):
+    agent.orchestrator.load_workflow(args.workflow_id)
+    state = agent.orchestrator.verify()
+    agent.print_state(state)
+
+
+def _handle_fix(args, agent: UnifiedAgent):
+    agent.orchestrator.load_workflow(args.workflow_id)
+    state = agent.orchestrator.fix()
+    agent.print_state(state)
+
+
+def _handle_resume(args, agent: UnifiedAgent):
+    agent.orchestrator.load_workflow(args.workflow_id)
+    result = agent.orchestrator.resume()
+    print("\n✅ 工作流恢复执行完成!")
+
+
+def _handle_skill(args, agent: UnifiedAgent):
+    if args.list:
+        print("\n" + "="*60)
+        print("🔧 可用技能")
+        print("="*60)
+        for name in agent.get_available_skills():
+            print(f"  - {name}")
+        print("\n提示: 使用 `--name <skill-name>` 执行特定技能")
+    elif args.name:
+        inputs = {}
+        if args.log:
+            inputs["log_path"] = args.log
+        if args.bug:
+            inputs["bug_description"] = agent._parse_bug_description(load_bug_text(args.bug))
+        if args.input_json:
+            if os.path.exists(args.input_json):
+                with open(args.input_json, 'r', encoding='utf-8') as f:
+                    inputs.update(json.load(f))
+            else:
+                inputs.update(json.loads(args.input_json))
         
-        print("\n" + "="*60)
-        print("✅ 完整分析完成!")
-        print("="*60)
-        print(f"报告保存在: {os.path.abspath('outputs/reports')}")
-        print(f"工作流状态保存在: {os.path.abspath('outputs/state')}")
-    
-    elif args.command == "plan":
-        bug_text = load_bug_text(args.bug)
-        bug_desc = agent._parse_bug_description(bug_text)
-        inputs = {
-            "bug_description": bug_desc,
-            "log_path": args.log,
-            "analysis_mode": agent.feature_sdk.get_variant("analysis_mode")
-        }
-        state = agent.orchestrator.plan(args.name, inputs)
-        agent.print_state(state)
-    
-    elif args.command == "build":
-        agent.orchestrator.load_workflow(args.workflow_id)
-        state = agent.orchestrator.build()
-        agent.print_state(state)
-    
-    elif args.command == "verify":
-        agent.orchestrator.load_workflow(args.workflow_id)
-        state = agent.orchestrator.verify()
-        agent.print_state(state)
-    
-    elif args.command == "fix":
-        agent.orchestrator.load_workflow(args.workflow_id)
-        state = agent.orchestrator.fix()
-        agent.print_state(state)
-    
-    elif args.command == "resume":
-        agent.orchestrator.load_workflow(args.workflow_id)
-        result = agent.orchestrator.resume()
-        print("\n✅ 工作流恢复执行完成!")
-    
-    elif args.command == "skill":
-        if args.list:
-            print("\n" + "="*60)
-            print("🔧 可用技能")
-            print("="*60)
-            for name in agent.get_available_skills():
-                print(f"  - {name}")
-            print("\n提示: 使用 `--name <skill-name>` 执行特定技能")
-        elif args.name:
-            # 构建输入
-            inputs = {}
-            if args.log:
-                inputs["log_path"] = args.log
-            if args.bug:
-                inputs["bug_description"] = agent._parse_bug_description(load_bug_text(args.bug))
-            if args.input_json:
-                if os.path.exists(args.input_json):
-                    with open(args.input_json, 'r', encoding='utf-8') as f:
-                        inputs.update(json.load(f))
-                else:
-                    inputs.update(json.loads(args.input_json))
-            
-            print(f"\n🔧 执行技能: {args.name}")
-            print(f"输入: {inputs}")
-            
-            result = agent.orchestrator.execute_skill(args.name, inputs)
-            
-            print(f"\n✅ 技能执行完成!")
-            print(f"成功: {result.get('success')}")
-            print(f"消息: {result.get('message')}")
-            print(f"数据: {json.dumps(result.get('data', {}), ensure_ascii=False, indent=2)[:2000]}")
-        else:
-            print("⚠️ 请指定 `--list` 列出技能或 `--name <skill-name>` 执行技能")
-    
-    elif args.command == "status":
-        state = agent.orchestrator.load_workflow(args.workflow_id)
-        agent.print_state(state)
-        print("\n📋 详细验证结果:")
-        for vr in state.get("validation_results", []):
-            status = "✅" if vr["passed"] else "❌"
-            print(f"  {status} {vr['check_name']}: {vr['details']}")
-    
-    elif args.command == "list":
-        workflows = agent.orchestrator.list_workflows()
-        print("\n" + "="*60)
-        print(f"📋 已保存工作流 ({len(workflows)} 个)")
-        print("="*60)
-        for wf in sorted(workflows):
-            print(f"  - {wf}")
+        print(f"\n🔧 执行技能: {args.name}")
+        print(f"输入: {inputs}")
+        
+        result = agent.orchestrator.execute_skill(args.name, inputs)
+        
+        print(f"\n✅ 技能执行完成!")
+        print(f"成功: {result.get('success')}")
+        print(f"消息: {result.get('message')}")
+        print(f"数据: {json.dumps(result.get('data', {}), ensure_ascii=False, indent=2)[:2000]}")
+    else:
+        print("⚠️ 请指定 `--list` 列出技能或 `--name <skill-name>` 执行技能")
+
+
+def _handle_status(args, agent: UnifiedAgent):
+    state = agent.orchestrator.load_workflow(args.workflow_id)
+    agent.print_state(state)
+    print("\n📋 详细验证结果:")
+    for vr in state.get("validation_results", []):
+        status = "✅" if vr["passed"] else "❌"
+        print(f"  {status} {vr['check_name']}: {vr['details']}")
+
+
+def _handle_list(args, agent: UnifiedAgent):
+    workflows = agent.orchestrator.list_workflows()
+    print("\n" + "="*60)
+    print(f"📋 已保存工作流 ({len(workflows)} 个)")
+    print("="*60)
+    for wf in sorted(workflows):
+        print(f"  - {wf}")
 
 
 if __name__ == "__main__":

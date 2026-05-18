@@ -128,3 +128,11 @@ class StateManager:
     def get_failed_validations(self) -> List[Dict[str, Any]]:
         """获取失败的验证"""
         return [r for r in self.current_state.get("validation_results", []) if not r["passed"]]
+    
+    def load_state(self, workflow_id: str) -> Dict[str, Any]:
+        """从文件加载指定工作流的状态"""
+        state_file = os.path.join(self.state_dir, f"{workflow_id}.json")
+        with open(state_file, 'r', encoding='utf-8') as f:
+            self.current_state = json.load(f)
+        logger.info(f"工作流状态已加载: {workflow_id}")
+        return self.current_state.copy()

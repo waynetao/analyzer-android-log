@@ -4,7 +4,6 @@ Orchestrator - Harness Engineering核心协调器
 """
 import sys
 import os
-import json
 import time
 from typing import Dict, Any, List, Optional
 from .context import ContextEngine
@@ -318,9 +317,7 @@ class Orchestrator:
 
     def load_workflow(self, workflow_id: str) -> Dict[str, Any]:
         """从保存的状态加载工作流"""
-        self.state_manager.current_state = self._load_state(workflow_id)
-        logger.info(f"工作流已加载: {workflow_id}")
-        return self.state_manager.get_state()
+        return self.state_manager.load_state(workflow_id)
 
     def get_current_state(self) -> Dict[str, Any]:
         """获取当前工作流状态"""
@@ -487,8 +484,4 @@ class Orchestrator:
             logger.error(f"技能执行失败: {skill_name}, 错误: {str(e)}", exc_info=True)
             raise
 
-    def _load_state(self, workflow_id: str) -> Dict[str, Any]:
-        """从文件加载状态"""
-        state_file = os.path.join(self.state_manager.state_dir, f"{workflow_id}.json")
-        with open(state_file, 'r', encoding='utf-8') as f:
-            return json.load(f)
+    
