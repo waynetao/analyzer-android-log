@@ -35,9 +35,16 @@ class AdvancedLogAnalysisSkill(BaseSkill):
         bug_desc = inputs.get("bug_description", {})
         
         try:
-            # 解析日志
-            extractor = LogExtractor()
-            extract_dir = extractor.extract(log_path)
+            # 优先复用 log_extraction 的解压结果，避免重复解压
+            prev_output = inputs.get("log_extraction", {})
+            if isinstance(prev_output, dict):
+                extract_dir = prev_output.get("data", {}).get("extraction_dir")
+            else:
+                extract_dir = None
+            
+            if not extract_dir:
+                extractor = LogExtractor()
+                extract_dir = extractor.extract(log_path)
             parser = BugReportParser(extract_dir)
             log_entries = parser.parse_all()
             

@@ -35,9 +35,16 @@ class LogExtractionWithAloggrepSkill(BaseSkill):
         use_aloggrep = inputs.get("use_aloggrep", True)
         
         try:
-            # 1. 解压和提取日志文件
-            extractor = LogExtractor()
-            extract_dir = extractor.extract(log_path)
+            # 优先复用 log_extraction 的解压结果，避免重复解压
+            prev_output = inputs.get("log_extraction", {})
+            if isinstance(prev_output, dict):
+                extract_dir = prev_output.get("data", {}).get("extraction_dir")
+            else:
+                extract_dir = None
+            
+            if not extract_dir:
+                extractor = LogExtractor()
+                extract_dir = extractor.extract(log_path)
             
             # 找到实际的日志文件
             log_files = self._find_log_files(extract_dir)

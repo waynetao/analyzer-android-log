@@ -49,8 +49,14 @@ logs/
 *.tmp
 *.bak
 *.cache
-temp
-outputs
+temp/
+outputs/
+
+# Case library runtime data
+case_library/cases/
+case_library/index.json
+case_library/metadata.json
+case_library/tags/
 
 # OS
 .DS_Store
