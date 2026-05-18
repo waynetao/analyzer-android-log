@@ -1,10 +1,39 @@
 steps:
-  - name: Checkout
+  - name: Checkout repository
     uses: actions/checkout@v4
     with:
       fetch-depth: 0
 
-  - name: Mirror to Gitee
+  - name: Debug Info
+    run: |
+      echo "GitHub repo: ${{ github.repository }}"
+      echo "Repo owner: ${{ github.repository_owner }}"
+      echo "Repo name: ${{ github.event.repository.name }}"
+      if [ -z "${{ secrets.GITEE_USER }}" ]; then
+        echo "GITEE_USER is empty"
+      else
+        echo "GITEE_USER detected"
+      fi
+      if [ -z "${{ secrets.GITEE_TOKEN }}" ]; then
+        echo "GITEE_TOKEN is empty"
+      else
+        echo "GITEE_TOKEN detected"
+      fi
+
+  - name: Mirror to Gitee (try 1)
+    id: mirror1
+    continue-on-error: true
+    uses: Yikun/hub-mirror-action@master
+    with:
+      src: github/${{ github.repository_owner }}
+      dst: gitee/${{ secrets.GITEE_USER }}
+      dst_token: ${{ secrets.GITEE_TOKEN }}
+      repos: ${{ github.event.repository.name }}
+      force_update: true
+      debug: true
+
+  - name: Mirror to Gitee (retry)
+    if: steps.mirror1.outcome == 'failure'
     uses: Yikun/hub-mirror-action@master
     with:
       src: github/${{ github.repository_owner }}
