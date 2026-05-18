@@ -7,11 +7,15 @@ Harness Android Log Analysis Agent
 # 重要：必须在所有 import 之前设置路径
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+script_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(script_dir)
+sys.path.insert(0, project_root)
 
-# 加载 .env 文件（自动读取环境变量）
+# 加载 .env 文件（从项目根目录加载）
 from dotenv import load_dotenv
-load_dotenv()
+dotenv_path = os.path.join(project_root, ".env")
+load_dotenv(dotenv_path, override=True)
+print(f"📄 从 {dotenv_path} 加载 .env 文件")
 
 import argparse
 from datetime import datetime
