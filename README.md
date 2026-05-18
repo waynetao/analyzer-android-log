@@ -4,8 +4,8 @@
 
 基于 Harness Engineering 架构的 Android 日志分析 AI Agent，支持高质量的自动化分析、证据匹配、LLM 集成、记忆系统等功能。
 
-**当前版本**: v7.0 (Memory System)  
-**最后更新**: 2026-05-17
+**当前版本**: v8.0 (Pipeline & CLI)
+**最后更新**: 2026-05-18
 
 ---
 
@@ -24,14 +24,32 @@ cargo install aloggrep
 ```
 
 ### 2. 运行 Agent
+
+#### 统一 CLI（推荐）
 ```bash
-# 使用高级 Agent（推荐）
+python scripts/cli.py full --bug "描述你的Bug" --log logcat.txt --format markdown
+
+# 分阶段执行
+python scripts/cli.py plan --bug "描述你的Bug" --log logcat.txt
+python scripts/cli.py build --workflow-id <ID>
+python scripts/cli.py verify --workflow-id <ID>
+
+# 单独执行技能
+python scripts/cli.py skill --list
+python scripts/cli.py skill --name log_extraction --log app.log
+
+# 查看工作流状态
+python scripts/cli.py status --workflow-id <ID>
+python scripts/cli.py list
+```
+
+#### 高级/基础 Agent（原有方式）
+```bash
 python scripts/harness_agent_advanced.py \
     --bug "描述你的Bug" \
     --log logcat.txt \
     --format markdown
 
-# 使用基础 Agent
 python scripts/harness_agent.py \
     --bug "描述你的Bug" \
     --log logcat.txt
@@ -93,6 +111,13 @@ python scripts/ffctl.py set llm_analysis_enabled --percentage 50
 - ✅ 案例库技能（CRUD、搜索、统计）
 - ✅ 完整测试覆盖
 
+### Pipeline & CLI (v8.0)
+- ✅ 统一 CLI 入口（scripts/cli.py）
+- ✅ 分阶段执行（plan → build → verify → fix）
+- ✅ 独立技能调用
+- ✅ 断点续跑（resume）
+- ✅ 工作流状态管理（load/list/status）
+
 ---
 
 ## 🏗️ 架构设计
@@ -140,8 +165,9 @@ python scripts/ffctl.py set llm_analysis_enabled --percentage 50
 ```
 /workspace/
 ├── scripts/                           # 脚本和工具
+│   ├── cli.py                        # 统一 CLI 入口（推荐）
 │   ├── harness_agent.py              # 基础 Agent
-│   ├── harness_agent_advanced.py     # 高级 Agent（推荐）
+│   ├── harness_agent_advanced.py     # 高级 Agent
 │   └── ffctl.py                      # Feature Flag 管理
 ├── harness/
 │   ├── core/
@@ -260,6 +286,7 @@ memory_system_enabled:
 
 | 版本 | 日期 | 主要功能 |
 |------|------|---------|
+| 8.0.0 | 2026-05-18 | Pipeline 分阶段执行 + 统一 CLI |
 | 7.0.0 | 2026-05-17 | 记忆系统集成 |
 | 6.0.0 | 2026-05-17 | Feature Flag 管控 |
 | 5.0.0 | 2026-05-17 | QMD 知识库集成 |

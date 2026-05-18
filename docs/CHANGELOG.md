@@ -7,6 +7,54 @@
 
 ---
 
+## [8.0.0] - 2026-05-18
+
+### 新增
+
+- ✨ **统一 CLI 入口** - `scripts/cli.py`
+  - 9 个子命令：`full` `plan` `build` `verify` `fix` `resume` `skill` `status` `list`
+  - 所有命令复用 `UnifiedAgent`，统一初始化和日志
+  - argparse subparser 模式，每命令独立 handler 函数
+  - 完整的帮助信息和示例
+
+- ✨ **Pipeline 分阶段执行**
+  - Orchestrator 暴露公开方法：`plan()` `build()` `verify()` `fix()`
+  - 从保存的状态恢复执行：`load_workflow()` `resume()`
+  - 独立技能执行：`execute_skill(skill_name, inputs)`
+  - 工作流列表：`list_workflows()` `get_current_state()`
+
+- ✨ **Orchestrator API 扩展**
+  - `load_workflow(workflow_id)` - 从 JSON 文件加载状态
+  - `plan/build/verify/fix()` - 分阶段独立执行
+  - `resume()` - 从当前检查点恢复并继续到完成
+  - `execute_skill()` - 单独执行任意注册技能
+  - `list_workflows()` - 列出所有已保存的工作流
+
+- ✨ **StateManager 封装增强**
+  - 新增 `load_state(workflow_id)` 公开方法，消除后门访问
+  - 保持现有 `initialize_workflow` / `update_context` / `update_output` 等接口
+
+### 重构
+
+- 🔥 **CLI 代码结构优化**
+  - `main()` 从 90 行 if-elif 链重构为 handler 函数字典
+  - 每命令添加独立 subparser 函数（`_add_*_subparser`）
+  - 每命令添加独立 handler 函数（`_handle_*`）
+  - 清理冗余参数：build/verify/fix/resume 只保留 `--workflow-id`
+  - `plan` 命令新增 `--format` 参数，与 `full` 接口一致
+
+- 🔥 **Orchestrator 封装优化**
+  - 移除 `_load_state()` 私有方法（职责迁移到 StateManager）
+  - 移除 `json` 导入（不再自行加载 JSON）
+  - `load_workflow()` 委托给 `StateManager.load_state()`
+
+### 测试
+
+- ✅ 所有 139 个测试通过
+- ✅ 139 passed, 62 warnings（仅 pytest return-not-none 警告）
+
+---
+
 ## [7.0.0] - 2026-05-17
 
 ### 新增

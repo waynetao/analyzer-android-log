@@ -37,9 +37,11 @@
 
 ```
 /workspace/
-├── AGENTS.md                   # AI Agent 导航地图
-├── harness_agent.py            # 基础版 Agent
-├── harness_agent_advanced.py   # 高级版 Agent (推荐使用!)
+├── scripts/                     # 脚本目录
+│   ├── cli.py                   # 统一 CLI 入口（推荐） v8.0
+│   ├── harness_agent.py         # 基础版 Agent
+│   ├── harness_agent_advanced.py # 高级版 Agent
+│   └── ffctl.py                # Feature Flag 管理
 ├── harness/
 │   ├── core/                  # 核心层
 │   │   ├── context.py         # 上下文引擎
@@ -84,6 +86,29 @@ python harness_agent_advanced.py --bug sample_bug.txt --log test_log.txt
 
 # 生成多种格式的报告
 python harness_agent_advanced.py --bug sample_bug.txt --log test_log.txt --format all
+```
+
+### 统一 CLI（v8.0 新增，推荐）
+
+```bash
+# 完整分析
+python scripts/cli.py full --bug sample_bug.txt --log test_log.txt --format markdown
+
+# 分阶段执行
+python scripts/cli.py plan --bug sample_bug.txt --log test_log.txt
+python scripts/cli.py build --workflow-id <ID>
+python scripts/cli.py verify --workflow-id <ID>
+
+# 从断点恢复
+python scripts/cli.py resume --workflow-id <ID>
+
+# 单独执行技能
+python scripts/cli.py skill --list
+python scripts/cli.py skill --name log_extraction --log test_log.txt
+
+# 工作流状态管理
+python scripts/cli.py list
+python scripts/cli.py status --workflow-id <ID>
 ```
 
 ### 测试日志证据匹配功能
