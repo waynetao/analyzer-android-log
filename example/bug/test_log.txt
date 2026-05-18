@@ -1,0 +1,14 @@
+03-29 11:25:30.123456  1234  5678 I ActivityManager: Start proc com.example.app
+03-29 11:25:31.234567  1234  5679 D ExampleApp: Application created
+03-29 11:25:32.894092   939   949 I am_crash: [9337,0,com.example.app,954744388,java.lang.NullPointerException,Attempt to invoke virtual method 'void android.view.View.setVisibility(int)' on a null object reference,MainActivity.java,36]
+03-29 11:25:32.910190   939   949 I am_finish_activity: [0,198242511,14,com.example.app/.MainActivity,force-crash]
+03-29 11:26:00.123456   939  1439 I am_low_memory: 19
+03-29 11:26:01.234567   939   938 I am_destroy_activity: [0,205784777,125,com.android.settings/.Settings,finish-idle]
+03-29 11:27:00.123456   939  1234 W ActivityManager: Activity idle timeout for HistoryRecord{1234567 com.example.app/.MainActivity}
+03-29 11:27:05.123456   939  1234 E ActivityManager: ANR in com.example.app (com.example.app/.MainActivity)
+03-29 11:27:05.234567   939  1234 E ActivityManager: Reason: Input dispatching timed out (Waiting because no window has focus but there is a focused application that may eventually add a window when it finishes starting up.)
+03-29 11:28:00.123456  5678  5678 E AndroidRuntime: FATAL EXCEPTION: main
+03-29 11:28:00.234567  5678  5678 E AndroidRuntime: Process: com.example.app, PID: 5678
+03-29 11:28:00.345678  5678  5678 E AndroidRuntime: java.lang.RuntimeException: Unable to start activity ComponentInfo{com.example.app/.MainActivity}: java.lang.IndexOutOfBoundsException: Index: 0, Size: 0
+03-29 11:28:00.456789  5678  5678 E AndroidRuntime: 	at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:3639)
+03-29 11:28:00.567890  5678  5678 E AndroidRuntime: 	at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:3796)
