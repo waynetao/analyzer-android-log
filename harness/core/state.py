@@ -17,7 +17,11 @@ class WorkflowStage(Enum):
     COMPLETED = "completed"
 
 class StateManager:
-    def __init__(self, state_dir: str = "/workspace/outputs/state"):
+    def __init__(self, state_dir: str = None):
+        # 自动计算项目根目录
+        if state_dir is None:
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            state_dir = os.path.join(project_root, "outputs", "state")
         self.state_dir = state_dir
         self.current_state: Dict[str, Any] = {}
         self.checkpoints: List[Dict[str, Any]] = []

@@ -6,8 +6,6 @@ import os
 import json
 from typing import Dict, Any, List
 from .base import BaseSkill, SkillResult
-import sys
-sys.path.insert(0, '/workspace')
 from log_analyzer.aloggrep_wrapper import ALogGrep, LogLevel
 from log_analyzer.extractor.extractor import LogExtractor
 

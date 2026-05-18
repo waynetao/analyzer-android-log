@@ -5,8 +5,6 @@ LogExtractionSkill - 日志提取和解析技能
 import os
 from typing import Dict, Any, List
 from .base import BaseSkill, SkillResult
-import sys
-sys.path.insert(0, '/workspace')
 from log_analyzer.extractor.extractor import LogExtractor
 from log_analyzer.bugreport.bugreport_parser import BugReportParser
 

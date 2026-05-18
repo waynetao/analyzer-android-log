@@ -10,8 +10,6 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
-sys.path.insert(0, '/workspace')
-
 from harness.skills.base import BaseSkill, SkillResult
 
 
@@ -29,7 +27,11 @@ class OpenVikingMemorySkill(BaseSkill):
         self.feature_sdk = None
         self.viking_client = None
         self.is_available = False
-        self.workspace_path = workspace_path or "/workspace/openviking_data"
+        # 自动计算项目根目录
+        if workspace_path is None:
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            workspace_path = os.path.join(project_root, "openviking_data")
+        self.workspace_path = workspace_path
 
         # 尝试初始化 OpenViking
         self._init_viking()

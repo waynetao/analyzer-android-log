@@ -5,8 +5,6 @@ AloggrepWorkflowSkill - 四阶段日志分析工作流
 import json
 from typing import Dict, Any, List, Optional
 from .base import BaseSkill, SkillResult
-import sys
-sys.path.insert(0, '/workspace')
 from log_analyzer.aloggrep_wrapper import ALogGrep, LogLevel
 
 

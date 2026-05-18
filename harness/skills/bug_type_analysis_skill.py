@@ -5,7 +5,6 @@ BugTypeAnalysisSkill - Bug类型差异化分析Skill
 from typing import Dict, Any
 import sys
 import os
-sys.path.insert(0, '/workspace')
 
 from harness.skills.base import BaseSkill, SkillResult
 from harness.core.feature_flags import FeatureSDK

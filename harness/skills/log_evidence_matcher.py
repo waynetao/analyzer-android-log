@@ -8,7 +8,6 @@ import sys
 import os
 import json
 from datetime import datetime
-sys.path.insert(0, '/workspace')
 
 try:
     from openai import OpenAI

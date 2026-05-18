@@ -10,8 +10,6 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-sys.path.insert(0, '/workspace')
-
 from harness.skills.base import BaseSkill, SkillResult
 from harness.core.feature_flags import FeatureSDK
 
@@ -29,8 +27,12 @@ class CaseLibrarySkill(BaseSkill):
     def name(self) -> str:
         return "case_library"
     
-    def __init__(self, library_path: str = "/workspace/case_library"):
+    def __init__(self, library_path: str = None):
         self.feature_sdk = FeatureSDK()
+        # 自动计算项目根目录
+        if library_path is None:
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            library_path = os.path.join(project_root, "case_library")
         self.library_path = Path(library_path)
         self._ensure_directory_structure()
     

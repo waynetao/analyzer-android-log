@@ -8,7 +8,10 @@ from typing import Dict, Any, List, Optional
 from pathlib import Path
 
 class ContextEngine:
-    def __init__(self, project_root: str = "/workspace"):
+    def __init__(self, project_root: str = None):
+        # 自动计算项目根目录
+        if project_root is None:
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         self.project_root = Path(project_root)
         self.context_cache: Dict[str, Any] = {}
         self._load_static_context()

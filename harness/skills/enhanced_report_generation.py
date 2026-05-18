@@ -7,8 +7,6 @@ import json
 from datetime import datetime
 from typing import Dict, Any
 from .base import BaseSkill, SkillResult
-import sys
-sys.path.insert(0, '/workspace')
 
 
 class EnhancedReportGenerationSkill(BaseSkill):

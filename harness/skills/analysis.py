@@ -4,8 +4,6 @@ BugAnalysisSkill - 问题分析技能
 """
 from typing import Dict, Any
 from .base import BaseSkill, SkillResult
-import sys
-sys.path.insert(0, '/workspace')
 from log_analyzer.extractor.extractor import LogExtractor
 from log_analyzer.bugreport.bugreport_parser import BugReportParser
 from log_analyzer.cleaner.log_cleaner import LogCleaner
