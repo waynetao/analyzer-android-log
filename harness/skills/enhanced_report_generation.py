@@ -39,7 +39,9 @@ class EnhancedReportGenerationSkill(BaseSkill):
             
             # 输出格式和目录
             output_format = inputs.get("output_format", "markdown")
-            output_dir = "/workspace/outputs/reports"
+            # 自动计算项目根目录
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            output_dir = os.path.join(project_root, "outputs", "reports")
             
             # 确保输出目录
             if not os.path.exists(output_dir):
