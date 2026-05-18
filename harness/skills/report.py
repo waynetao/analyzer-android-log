@@ -7,6 +7,7 @@ import json
 from datetime import datetime
 from typing import Dict, Any
 from .base import BaseSkill, SkillResult
+from harness.core.paths import OUTPUTS_REPORTS_DIR_STR
 
 class ReportGenerationSkill(BaseSkill):
     """报告生成技能 - 支持多格式，集成LLM分析"""
@@ -62,9 +63,8 @@ class ReportGenerationSkill(BaseSkill):
                 aloggrep_analysis_data = None
             
             output_format = inputs.get("output_format", "markdown")
-            # 自动计算项目根目录
-            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            output_dir = os.path.join(project_root, "outputs", "reports")
+            # 使用统一路径配置
+            output_dir = OUTPUTS_REPORTS_DIR_STR
             
             # 确保输出目录
             if not os.path.exists(output_dir):

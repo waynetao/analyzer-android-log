@@ -156,15 +156,15 @@ flags:
     variants: {}
   anti_rigidity_enabled:
     created_at: '2026-05-17T12:00:04.000000'
-    default_value: null
-    description: 启用防僵化机制（差异对比、失效标记等）
-    enabled: true
+    default_value: false
+    description: 启用防僵化机制（差异对比、失效标记等）- 待实现，暂不可启用
+    enabled: false
     environments:
     - dev
     - prod
     flag_type: boolean
     name: anti_rigidity_enabled
-    percentage_rollout: 100
+    percentage_rollout: 0
     targeting_rules: []
-    updated_at: '2026-05-17T12:00:04.000000'
+    updated_at: '2026-05-18T00:00:00.000000'
     variants: {}

@@ -2,6 +2,9 @@
 
 from typing import Dict, Any, List
 from .base import BaseSkill, SkillResult
+from harness.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 class KnowledgeRetrievalSkill(BaseSkill):
     """知识检索技能 - 从 QMD 知识库检索相关知识"""
@@ -72,7 +75,6 @@ class KnowledgeRetrievalSkill(BaseSkill):
         
         except Exception as e:
             # 降级处理：返回空结果，不影响主流程
-            logger = __import__('logging').getLogger(__name__)
             logger.error(f"知识检索失败: {e}")
             return SkillResult(
                 success=True,

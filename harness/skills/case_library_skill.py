@@ -12,6 +12,10 @@ from datetime import datetime
 
 from harness.skills.base import BaseSkill, SkillResult
 from harness.core.feature_flags import FeatureSDK
+from harness.core.paths import PROJECT_ROOT_STR
+from harness.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def validate_case_id(case_id: str) -> bool:
@@ -39,11 +43,11 @@ class CaseLibrarySkill(BaseSkill):
     
     def __init__(self, library_path: str = None):
         self.feature_sdk = FeatureSDK()
-        # 自动计算项目根目录
+        # 使用统一路径配置
         if library_path is None:
-            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            library_path = os.path.join(project_root, "case_library")
+            library_path = os.path.join(PROJECT_ROOT_STR, "case_library")
         self.library_path = Path(library_path)
+        self._index_cache: Optional[Dict] = None  # 索引缓存
         self._ensure_directory_structure()
     
     def _ensure_directory_structure(self):
@@ -100,19 +104,28 @@ class CaseLibrarySkill(BaseSkill):
         return f"case_{timestamp}_{short_uuid}"
     
     def _load_index(self) -> Dict:
-        """加载索引文件"""
+        """加载索引文件（带内存缓存）"""
+        if self._index_cache is not None:
+            return self._index_cache
         index_file = self.library_path / "index.json"
         try:
             with open(index_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                self._index_cache = json.load(f)
+                return self._index_cache
         except (json.JSONDecodeError, FileNotFoundError):
-            return {"cases": {}}
-    
+            self._index_cache = {"cases": {}}
+            return self._index_cache
+
+    def _invalidate_cache(self):
+        """使索引缓存失效"""
+        self._index_cache = None
+
     def _save_index(self, index: Dict):
         """保存索引文件"""
         index_file = self.library_path / "index.json"
         with open(index_file, 'w', encoding='utf-8') as f:
             json.dump(index, f, indent=2, ensure_ascii=False)
+        self._index_cache = index  # 更新缓存
     
     def _update_metadata(self, delta: int = 0):
         """更新元数据"""
@@ -178,7 +191,7 @@ class CaseLibrarySkill(BaseSkill):
             self._update_tags(case_data)
             self._update_metadata(delta=1)
             
-            print(f"✅ 案例已保存: {case_id}")
+            logger.info(f"案例已保存: {case_id}")
             
             return SkillResult(True, {"case_id": case_id}, "案例已保存")
             
@@ -237,7 +250,7 @@ class CaseLibrarySkill(BaseSkill):
             
             results = self._simple_search(query, bug_type, top_k)
             
-            print(f"🔍 找到 {len(results)} 个相似案例")
+            logger.info(f"找到 {len(results)} 个相似案例")
             
             return SkillResult(True, {
                 "results": results,

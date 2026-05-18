@@ -12,6 +12,7 @@ from typing import Dict, Any, List, Optional
 
 from harness.skills.base import BaseSkill, SkillResult
 from harness.core.logging import get_logger
+from harness.core.paths import PROJECT_ROOT_STR
 
 logger = get_logger(__name__)
 
@@ -53,10 +54,9 @@ class OpenVikingMemorySkill(BaseSkill):
         self.vlm_api_base = os.environ.get("OPENVIKING_VLM_API_BASE", "")
         self.vlm_temperature = float(os.environ.get("OPENVIKING_VLM_TEMPERATURE", "0.1"))
         
-        # 自动计算项目根目录
+        # 使用统一路径配置
         if workspace_path is None:
-            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            workspace_path = os.path.join(project_root, "openviking_data")
+            workspace_path = os.path.join(PROJECT_ROOT_STR, "openviking_data")
         self.workspace_path = workspace_path
 
         # 尝试初始化 OpenViking
@@ -101,7 +101,7 @@ class OpenVikingMemorySkill(BaseSkill):
                         "input": "multimodal"
                     }
                 }
-                print(f"📦 OpenViking: 使用嵌入模型 {self.embedding_model}")
+                logger.info(f"OpenViking: 使用嵌入模型 {self.embedding_model}")
 
             # 添加 VLM 配置（如果有）
             if self.vlm_backend:
@@ -113,7 +113,7 @@ class OpenVikingMemorySkill(BaseSkill):
                     "temperature": self.vlm_temperature,
                     "max_retries": 3
                 }
-                print(f"📦 OpenViking: 使用 VLM 模型 {self.vlm_model}")
+                logger.info(f"OpenViking: 使用 VLM 模型 {self.vlm_model}")
 
             # 初始化客户端（支持配置参数）
             try:
@@ -123,15 +123,15 @@ class OpenVikingMemorySkill(BaseSkill):
                 # 如果 OpenViking SDK 不支持 config 参数，使用基础初始化
                 self.viking_client = OpenViking(path=self.workspace_path)
                 if self.embedding_backend or self.vlm_backend:
-                    print("⚠️  OpenViking SDK 版本不支持配置参数，跳过模型配置")
+                    logger.warning("OpenViking SDK 版本不支持配置参数，跳过模型配置")
             
             self.is_available = True
-            print("✅ OpenVikingMemorySkill: OpenViking 已成功初始化")
+            logger.info("OpenVikingMemorySkill: OpenViking 已成功初始化")
 
         except ImportError:
-            print("⚠️  OpenVikingMemorySkill: OpenViking 未安装，降级到 simple 模式")
+            logger.warning("OpenVikingMemorySkill: OpenViking 未安装，降级到 simple 模式")
         except Exception as e:
-            print(f"⚠️  OpenVikingMemorySkill: 初始化失败 ({str(e)})，降级到 simple 模式")
+            logger.warning(f"OpenVikingMemorySkill: 初始化失败 ({str(e)})，降级到 simple 模式")
 
     def _build_uri(self, bug_type: str, case_id: str) -> str:
         """构建 Viking URI"""
@@ -203,7 +203,7 @@ class OpenVikingMemorySkill(BaseSkill):
             # L2: 完整内容（按需加载）
             self.viking_client.write(uri, content=full_content, level="L2")
 
-            print(f"✅ OpenViking: 案例 {case_id} 已保存到 {uri}")
+            logger.info(f"OpenViking: 案例 {case_id} 已保存到 {uri}")
 
             return SkillResult(
                 True,
@@ -247,7 +247,7 @@ class OpenVikingMemorySkill(BaseSkill):
                     "uri": result.uri
                 })
 
-            print(f"✅ OpenViking: 找到 {len(formatted_results)} 个相似案例")
+            logger.info(f"OpenViking: 找到 {len(formatted_results)} 个相似案例")
 
             return SkillResult(
                 True,

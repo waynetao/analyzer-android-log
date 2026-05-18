@@ -158,8 +158,8 @@ class BugDescriptionParser:
                 actual_behavior=data.get("actual_behavior"),
                 frequency=data.get("frequency")
             )
-        except Exception as e:
-            print(f"解析LLM响应失败: {e}")
+        except (json.JSONDecodeError, ValueError, KeyError) as e:
+            logger.warning(f"解析LLM响应失败: {e}")
             # 返回基础对象
             return BugDescription(raw_text=raw_text)
 

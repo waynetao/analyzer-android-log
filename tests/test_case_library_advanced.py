@@ -437,6 +437,117 @@ def test_case_library_edge_cases():
         shutil.rmtree(test_dir, ignore_errors=True)
 
 
+# ============ 索引缓存测试 (pytest 风格) ============
+
+class TestCaseLibraryIndexCache:
+    """索引缓存和缓存失效测试"""
+
+    def test_load_index_uses_cache(self):
+        """_load_index 优先返回缓存"""
+        test_dir = tempfile.mkdtemp()
+        try:
+            skill = CaseLibrarySkill(library_path=test_dir)
+            # 第一次加载，填充缓存
+            index1 = skill._load_index()
+            # 第二次加载应返回同一对象（缓存命中）
+            index2 = skill._load_index()
+            assert index1 is index2
+        finally:
+            shutil.rmtree(test_dir, ignore_errors=True)
+
+    def test_invalidate_cache(self):
+        """_invalidate_cache 使缓存失效"""
+        test_dir = tempfile.mkdtemp()
+        try:
+            skill = CaseLibrarySkill(library_path=test_dir)
+            skill._load_index()  # 填充缓存
+            skill._invalidate_cache()
+            assert skill._index_cache is None
+        finally:
+            shutil.rmtree(test_dir, ignore_errors=True)
+
+    def test_save_index_updates_cache(self):
+        """_save_index 保存后更新缓存"""
+        test_dir = tempfile.mkdtemp()
+        try:
+            skill = CaseLibrarySkill(library_path=test_dir)
+            new_index = {"cases": {"case_1": {"bug_type": "crash"}}}
+            skill._save_index(new_index)
+            assert skill._index_cache == new_index
+        finally:
+            shutil.rmtree(test_dir, ignore_errors=True)
+
+    def test_save_case_updates_cache(self):
+        """保存案例后索引缓存被更新"""
+        test_dir = tempfile.mkdtemp()
+        try:
+            skill = CaseLibrarySkill(library_path=test_dir)
+            result = skill.execute({
+                "action": "save_case",
+                "bug_summary": "缓存测试案例",
+                "keywords": ["cache"],
+                "l0_summary": "缓存测试",
+                "l1_overview": {},
+                "bug_type": "crash",
+                "tags": ["cache"]
+            })
+            assert result.success
+            # 缓存应包含新案例
+            index = skill._load_index()
+            assert len(index["cases"]) > 0
+        finally:
+            shutil.rmtree(test_dir, ignore_errors=True)
+
+    def test_load_index_handles_corrupted_json(self):
+        """_load_index 处理损坏的 JSON"""
+        test_dir = tempfile.mkdtemp()
+        try:
+            skill = CaseLibrarySkill(library_path=test_dir)
+            # 损坏 index.json
+            index_file = os.path.join(test_dir, "index.json")
+            with open(index_file, 'w') as f:
+                f.write("{invalid json")
+            # 使缓存失效
+            skill._invalidate_cache()
+            # 应返回默认值
+            index = skill._load_index()
+            assert index == {"cases": {}}
+        finally:
+            shutil.rmtree(test_dir, ignore_errors=True)
+
+
+# ============ 输入验证测试 (pytest 风格) ============
+
+class TestCaseLibraryValidation:
+    """路径注入验证测试"""
+
+    def test_validate_case_id_rejects_path_traversal(self):
+        """validate_case_id 拒绝路径遍历"""
+        from harness.skills.case_library_skill import validate_case_id
+        assert validate_case_id("../../../etc/passwd") is False
+        assert validate_case_id("case/../../secret") is False
+        assert validate_case_id("normal_case_123") is True
+        assert validate_case_id("case-2026") is True
+
+    def test_validate_tag_rejects_special_chars(self):
+        """validate_tag 拒绝特殊字符"""
+        from harness.skills.case_library_skill import validate_tag
+        assert validate_tag("../../secret") is False
+        assert validate_tag("tag with spaces") is False
+        assert validate_tag("crash") is True
+        assert validate_tag("android-12") is True
+
+    def test_load_case_rejects_path_traversal(self):
+        """_load_case 拒绝路径遍历攻击"""
+        test_dir = tempfile.mkdtemp()
+        try:
+            skill = CaseLibrarySkill(library_path=test_dir)
+            result = skill._load_case("../../../etc/passwd")
+            assert result is None
+        finally:
+            shutil.rmtree(test_dir, ignore_errors=True)
+
+
 def main():
     """运行所有测试"""
     print("\n" + "="*60)

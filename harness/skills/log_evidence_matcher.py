@@ -48,7 +48,111 @@ class LogEvidenceMatcherSkill(LLMBasedSkill):
         if self.use_mock:
             return self._mock_match(bug_desc, critical_logs, device_state)
         
-        return self._mock_match(bug_desc, critical_logs, device_state)
+        # 使用 LLM 进行证据匹配
+        try:
+            return self._llm_match(bug_desc, critical_logs, device_state)
+        except Exception as e:
+            logger.warning(f"LLM 证据匹配失败，降级到规则匹配: {e}")
+            return self._rule_based_match(bug_desc, critical_logs, device_state)
+    
+    def _llm_match(self, bug_desc: Dict, critical_logs: List, device_state: Dict) -> Dict:
+        """使用 LLM 进行智能证据匹配"""
+        import json
+        
+        logs_summary = []
+        for idx, log in enumerate(critical_logs[:20]):
+            if isinstance(log, dict):
+                logs_summary.append(f"[{idx}] {log.get('timestamp', '')} {log.get('level', '')} {log.get('tag', '')}: {log.get('message', '')[:200]}")
+            else:
+                logs_summary.append(f"[{idx}] {str(log)[:200]}")
+        
+        user_desc = bug_desc.get("raw_text", str(bug_desc))
+        
+        prompt = f"""你是一位资深的Android日志分析专家。请对照用户描述的现象和日志证据进行匹配分析。
+
+【用户问题描述】
+{user_desc}
+
+【关键日志（最多20条）】
+{chr(10).join(logs_summary)}
+
+【设备状态】
+- 电池事件: {len(device_state.get('battery_levels', []))} 条
+- 内存事件: {len(device_state.get('memory_states', []))} 条
+- 热事件: {len(device_state.get('thermal_events', []))} 条
+
+请返回JSON格式的匹配结果：
+{{
+    "confidence_score": 0.0到1.0的置信度,
+    "timeline_match": [
+        {{
+            "user_description": "用户描述的现象",
+            "log_evidence": "对应的日志证据",
+            "matched": true或false,
+            "confidence": 0.0到1.0
+        }}
+    ],
+    "what_we_saw_in_logs": ["在日志中观察到的关键事件列表"],
+    "what_happened": ["按时间顺序的事件描述"]
+}}
+
+只返回JSON，不要其他文字。"""
+        
+        response = super()._call_llm(
+            system_prompt="你是一位资深的Android日志分析专家，擅长对照用户描述和日志证据进行精准匹配。只返回JSON格式数据。",
+            user_prompt=prompt
+        )
+        
+        try:
+            json_start = response.find('{')
+            json_end = response.rfind('}') + 1
+            if json_start >= 0 and json_end > json_start:
+                return json.loads(response[json_start:json_end])
+        except (json.JSONDecodeError, ValueError):
+            pass
+        
+        return self._rule_based_match(bug_desc, critical_logs, device_state)
+    
+    def _rule_based_match(self, bug_desc: Dict, critical_logs: List, device_state: Dict) -> Dict:
+        """基于规则的证据匹配（降级方案）"""
+        user_desc = bug_desc.get("raw_text", str(bug_desc)).lower()
+        
+        timeline_match = []
+        matched_count = 0
+        total_confidence = 0.0
+        
+        # 关键词匹配
+        keywords = bug_desc.get("keywords", []) or []
+        search_terms = keywords + [word for word in user_desc.split() if len(word) > 2]
+        
+        for log in critical_logs[:20]:
+            if isinstance(log, dict):
+                msg = log.get("message", "").lower()
+            else:
+                msg = str(log).lower()
+            
+            matched_terms = [t for t in search_terms if t.lower() in msg]
+            if matched_terms:
+                confidence = min(0.5 + 0.1 * len(matched_terms), 0.95)
+                timeline_match.append({
+                    "user_description": user_desc[:100],
+                    "log_evidence": msg[:200],
+                    "matched": True,
+                    "confidence": confidence
+                })
+                matched_count += 1
+                total_confidence += confidence
+        
+        avg_confidence = total_confidence / max(matched_count, 1)
+        
+        return {
+            "confidence_score": round(avg_confidence, 2),
+            "timeline_match": timeline_match,
+            "scene_changes": [],
+            "what_we_saw_in_logs": [f"找到 {matched_count} 条与用户描述相关的日志"],
+            "what_happened": [],
+            "confidence_explanation": f"基于规则匹配，共匹配 {matched_count} 条日志，平均置信度 {avg_confidence:.2f}"
+        }
     
     def _mock_match(self, bug_desc: Dict, critical_logs: List, device_state: Dict) -> Dict:
         """模拟证据匹配"""

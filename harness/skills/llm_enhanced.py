@@ -76,17 +76,14 @@ Bug描述：
 只返回JSON，不要其他文字。"""
         
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.3,
-                max_tokens=2000
+            response = super()._call_llm(
+                system_prompt="你是一位Android Bug分析专家，擅长从用户描述中提取标准化信息。请只返回JSON格式数据。",
+                user_prompt=prompt
             )
-            text = response.choices[0].message.content
-            json_start = text.find('{')
-            json_end = text.rfind('}') + 1
-            if json_start >=0 and json_end > json_start:
-                return json.loads(text[json_start:json_end])
+            json_start = response.find('{')
+            json_end = response.rfind('}') + 1
+            if json_start >= 0 and json_end > json_start:
+                return json.loads(response[json_start:json_end])
             return self._mock_parse(bug_text)
         except Exception as e:
             logger.warning(f"LLM parsing failed: {e}, using mock")
@@ -154,6 +151,44 @@ class LogFilterSkill(LLMBasedSkill):
         """生成智能过滤规则"""
         if self.use_mock:
             return self._mock_filter_rules(bug_desc)
+        
+        # 使用 LLM 生成过滤规则
+        try:
+            return self._llm_filter_rules(bug_desc)
+        except Exception as e:
+            logger.warning(f"LLM 过滤规则生成失败，降级到默认规则: {e}")
+            return self._mock_filter_rules(bug_desc)
+    
+    def _llm_filter_rules(self, bug_desc: Dict) -> Dict:
+        """使用 LLM 生成过滤规则"""
+        prompt = f"""你是一位Android日志分析专家。请根据以下Bug描述，生成日志过滤规则，返回JSON格式。
+
+Bug描述：
+{json.dumps(bug_desc, ensure_ascii=False, default=str)}
+
+请返回以下JSON格式：
+{{
+    "include_keywords": ["需要包含的关键词列表"],
+    "exclude_keywords": ["需要排除的关键词列表"],
+    "priority_levels": ["E", "F", "W"],
+    "target_packages": ["目标包名列表"],
+    "time_range": ["相关时间点列表"]
+}}
+
+只返回JSON，不要其他文字。"""
+        
+        response = super()._call_llm(
+            system_prompt="你是一位Android日志分析专家，擅长根据Bug描述生成精准的日志过滤规则。只返回JSON格式数据。",
+            user_prompt=prompt
+        )
+        
+        try:
+            json_start = response.find('{')
+            json_end = response.rfind('}') + 1
+            if json_start >= 0 and json_end > json_start:
+                return json.loads(response[json_start:json_end])
+        except (json.JSONDecodeError, ValueError):
+            pass
         
         return self._mock_filter_rules(bug_desc)
     

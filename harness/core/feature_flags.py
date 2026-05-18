@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from harness.core.logging import get_logger
+from harness.core.paths import CONFIG_DIR_STR
 
 logger = get_logger(__name__)
 
@@ -58,12 +59,11 @@ class FeatureFlagEngine:
     """Feature Flag 求值引擎"""
     
     def __init__(self, config_path: str = None):
-        # 自动计算项目根目录和配置文件路径
+        # 使用统一路径配置
         if config_path:
             self.config_path = config_path
         else:
-            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            self.config_path = os.path.join(project_root, "config", "feature_flags.yaml")
+            self.config_path = os.path.join(CONFIG_DIR_STR, "feature_flags.yaml")
         self.flags: Dict[str, FeatureFlag] = {}
         self._load_flags()
     

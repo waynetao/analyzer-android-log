@@ -1,8 +1,11 @@
 import os
 import re
+import logging
 from typing import List, Dict, Optional
 from dataclasses import dataclass
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -60,8 +63,8 @@ class LogParser:
                     entry = self._parse_line(line, file_path)
                     if entry:
                         entries.append(entry)
-        except Exception as e:
-            print(f"Error parsing file {file_path}: {e}")
+        except (OSError, UnicodeDecodeError) as e:
+            logger.warning(f"Error parsing file {file_path}: {e}")
         return entries
 
     def _parse_line(self, line: str, file_path: str) -> Optional[LogEntry]:

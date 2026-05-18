@@ -45,12 +45,19 @@ class ValidationPolicy(BasePolicy):
     
     def validate_output(self, outputs: Dict[str, Any]) -> ValidationResult:
         """验证输出"""
-        required_outputs = ["log_extraction", "bug_analysis", "report_generation"]
+        # 支持多种分析技能名称（bug_analysis 为基础模式，advanced_log_analysis 为高级模式）
+        required_outputs = ["log_extraction", "report_generation"]
+        analysis_keys = ["bug_analysis", "advanced_log_analysis"]
         
         missing_outputs = []
         for output in required_outputs:
             if output not in outputs:
                 missing_outputs.append(output)
+        
+        # 检查至少有一个分析技能输出
+        has_analysis = any(key in outputs for key in analysis_keys)
+        if not has_analysis:
+            missing_outputs.append("bug_analysis 或 advanced_log_analysis")
         
         if missing_outputs:
             return ValidationResult(

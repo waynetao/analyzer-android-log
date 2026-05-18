@@ -11,6 +11,7 @@ from dataclasses import dataclass, field, asdict
 from collections import defaultdict
 
 from .logging import get_logger
+from .paths import PROJECT_ROOT_STR
 
 logger = get_logger(__name__)
 
@@ -117,8 +118,7 @@ class AnalyticsCollector:
     
     def __init__(self, analytics_dir: str = None):
         if analytics_dir is None:
-            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            analytics_dir = os.path.join(project_root, "outputs", "analytics")
+            analytics_dir = os.path.join(PROJECT_ROOT_STR, "outputs", "analytics")
         
         self.analytics_dir = analytics_dir
         os.makedirs(analytics_dir, exist_ok=True)

@@ -2,6 +2,9 @@ import os
 import zipfile
 import tarfile
 import shutil
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class LogExtractor:
@@ -9,6 +12,13 @@ class LogExtractor:
         self.temp_dir = temp_dir
         if not os.path.exists(temp_dir):
             os.makedirs(temp_dir)
+
+    @staticmethod
+    def _is_safe_path(member_path: str, extract_dir: str) -> bool:
+        """验证解压路径是否安全，防止路径遍历攻击（Zip Slip / Tar Slip）"""
+        abs_extract = os.path.abspath(extract_dir)
+        abs_target = os.path.abspath(os.path.join(extract_dir, member_path))
+        return abs_target.startswith(abs_extract + os.sep) or abs_target == abs_extract
 
     def extract(self, file_path: str) -> str:
         if zipfile.is_zipfile(file_path):
@@ -35,20 +45,40 @@ class LogExtractor:
             try:
                 if zipfile.is_zipfile(file_path):
                     with zipfile.ZipFile(file_path, "r") as zip_ref:
-                        zip_ref.extractall(extract_dir)
-                    print(f"  解压: {filename}")
+                        self._safe_extract_zip(zip_ref, extract_dir)
+                    logger.info(f"  解压: {filename}")
                 elif tarfile.is_tarfile(file_path):
                     with tarfile.open(file_path, "r:*") as tar_ref:
-                        tar_ref.extractall(extract_dir)
-                    print(f"  解压: {filename}")
+                        self._safe_extract_tar(tar_ref, extract_dir)
+                    logger.info(f"  解压: {filename}")
                 else:
                     # 非压缩文件直接复制
                     if os.path.isfile(file_path):
                         shutil.copy2(file_path, extract_dir)
-            except Exception as e:
-                print(f"  跳过 {filename}: {e}")
+            except (OSError, zipfile.BadZipFile, tarfile.TarError) as e:
+                logger.warning(f"  跳过 {filename}: {e}")
         
         return extract_dir
+
+    def _safe_extract_zip(self, zip_ref: zipfile.ZipFile, extract_dir: str):
+        """安全解压 ZIP 文件，防止路径遍历"""
+        for member in zip_ref.namelist():
+            if not self._is_safe_path(member, extract_dir):
+                logger.warning(f"  跳过不安全路径: {member}")
+                continue
+            zip_ref.extract(member, extract_dir)
+
+    def _safe_extract_tar(self, tar_ref: tarfile.TarFile, extract_dir: str):
+        """安全解压 TAR 文件，防止路径遍历"""
+        for member in tar_ref.getmembers():
+            if not self._is_safe_path(member.name, extract_dir):
+                logger.warning(f"  跳过不安全路径: {member.name}")
+                continue
+            # 额外安全检查：跳过符号链接和特殊文件
+            if member.issym() or member.islnk():
+                logger.warning(f"  跳过符号链接: {member.name}")
+                continue
+            tar_ref.extract(member, extract_dir)
 
     def _extract_zip(self, zip_path: str) -> str:
         extract_dir = os.path.join(
@@ -58,7 +88,7 @@ class LogExtractor:
             shutil.rmtree(extract_dir)
         os.makedirs(extract_dir)
         with zipfile.ZipFile(zip_path, "r") as zip_ref:
-            zip_ref.extractall(extract_dir)
+            self._safe_extract_zip(zip_ref, extract_dir)
         return extract_dir
 
     def _extract_tar(self, tar_path: str) -> str:
@@ -69,7 +99,7 @@ class LogExtractor:
             shutil.rmtree(extract_dir)
         os.makedirs(extract_dir)
         with tarfile.open(tar_path, "r:*") as tar_ref:
-            tar_ref.extractall(extract_dir)
+            self._safe_extract_tar(tar_ref, extract_dir)
         return extract_dir
 
     def cleanup(self):

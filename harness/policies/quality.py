@@ -19,7 +19,11 @@ class QualityPolicy(BasePolicy):
         if log_extraction.get("log_count", 0) == 0:
             issues.append("日志数量为0，请检查日志文件")
         
+        # 兼容基础模式(bug_analysis)和高级模式(advanced_log_analysis)
         bug_analysis = outputs.get("bug_analysis", {}).get("data", {})
+        if not bug_analysis:
+            bug_analysis = outputs.get("advanced_log_analysis", {}).get("data", {})
+        
         total_issues = sum([
             bug_analysis.get("crashes", 0),
             bug_analysis.get("anrs", 0),

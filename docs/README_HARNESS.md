@@ -8,8 +8,8 @@
 
 ### 🏗️ Harness 架构
 
-- **Core Layer**: StateManager, ContextEngine, Orchestrator - 不变的核心系统
-- **Skills Layer**: LogExtraction, AdvancedAnalysis, LLMAnalysis, EvidenceMatching, Timeline, ReportGeneration - 可插拔的技能模块
+- **Core Layer**: StateManager (脏标记+延迟写入), ContextEngine, Orchestrator (分阶段API), FeatureFlags, Analytics, Logging - 不变的核心系统
+- **Skills Layer**: LogExtraction, AdvancedAnalysis, LLMAnalysis, EvidenceMatching, Timeline, ReportGeneration, CaseLibrary, BugTypeAnalysis, KnowledgeRetrieval, OpenVikingMemory, EnhancedReport, AloggrepWorkflow - 可插拔的技能模块
 - **Policies Layer**: Validation, Quality, Format - 约束和验证策略
 
 ### 🔄 Plan-Build-Verify-Fix 工作流
@@ -25,46 +25,59 @@
 - HTML (响应式，带可视化)
 - JSON (机器可读)
 
-### 🎯 日志证据匹配 (最新功能!)
+### 🎯 核心功能
 
-- **置信度评分**: 量化分析结果的可信度
-- **用户现象与日志对照**: 验证用户描述的问题是否在日志中存在对应证据
-- **场景变化追踪**: 记录设备状态在问题发生前后的变化
-- **事件时间线**: 完整重构问题发生的时间顺序
-- **"我们在日志中看到了什么"和"发生了什么"**: 清晰解释日志内容和事件过程
+- **日志证据匹配**: 置信度评分、用户现象与日志对照、场景变化追踪、事件时间线
+- **记忆系统**: 案例库自动保存/检索，支持 Simple 和 OpenViking 双模
+- **Bug 类型差异化**: 针对崩溃/ANR/内存/其他类型使用不同分析策略
+- **Feature Flag 管控**: 条件技能注册、灰度发布、环境隔离
+- **统一 CLI**: 分阶段执行、断点恢复、独立技能调用
 
 ## 📁 项目结构
 
 ```
-/workspace/
+android-log-analyzer/
 ├── scripts/                     # 脚本目录
 │   ├── cli.py                   # 统一 CLI 入口（推荐） v8.0
-│   ├── harness_agent.py         # 基础版 Agent
 │   ├── harness_agent_advanced.py # 高级版 Agent
 │   └── ffctl.py                # Feature Flag 管理
 ├── harness/
 │   ├── core/                  # 核心层
 │   │   ├── context.py         # 上下文引擎
-│   │   ├── state.py           # 状态管理
-│   │   └── orchestrator.py    # 协调器
+│   │   ├── state.py           # 状态管理（脏标记+延迟写入）
+│   │   ├── orchestrator.py    # 协调器（分阶段API）
+│   │   ├── feature_flags.py   # Feature Flag 引擎
+│   │   ├── analytics.py       # 统计分析
+│   │   └── logging.py         # 统一日志
 │   ├── skills/                # 技能层
 │   │   ├── base.py
 │   │   ├── log_extraction.py
-│   │   ├── log_analysis_advanced.py  # 高级日志分析
+│   │   ├── log_analysis_advanced.py
 │   │   ├── llm_analysis.py    # LLM智能分析
-│   │   ├── log_evidence_matcher.py  # 日志证据匹配 (新!)
-│   │   └── report.py          # 报告生成
-│   └── policies/              # 策略层
-│       ├── base.py
-│       ├── validation.py
-│       ├── quality.py
-│       └── format.py
+│   │   ├── llm_enhanced.py    # LLM增强
+│   │   ├── log_evidence_matcher.py  # 证据匹配+时间线
+│   │   ├── case_library_skill.py  # 案例库 v7.0
+│   │   ├── openviking_memory_skill.py  # OpenViking v7.0
+│   │   ├── knowledge_retrieval.py  # 知识检索 v5.0
+│   │   ├── bug_type_analysis_skill.py  # Bug类型分析 v6.0
+│   │   ├── enhanced_report_generation.py  # 增强报告 v7.0
+│   │   ├── log_extraction_aloggrep_workflow.py  # aloggrep工作流 v4.0
+│   │   ├── report.py          # 报告生成
+│   │   └── bug_type/          # Bug类型分析器 v6.0
+│   ├── policies/              # 策略层
+│   │   ├── validation.py
+│   │   ├── quality.py
+│   │   └── format.py
+│   └── memory/                # 记忆层
+│       └── qmd_memory_manager.py  # QMD知识库 v5.0
+├── log_analyzer/              # 原始分析模块
 ├── config/
+│   ├── feature_flags.yaml     # Feature Flag 配置
 │   └── report_formats.yaml    # 报告格式配置
-├── outputs/
-│   ├── reports/               # 生成的报告
-│   └── state/                 # 工作流状态
-└── log_analyzer/             # 原始分析模块
+├── knowledge_base/            # 知识库 v5.0
+├── case_library/              # 案例库数据 v7.0
+├── tests/                     # 测试目录
+└── docs/                      # 文档目录
 ```
 
 ## 🎯 快速开始
@@ -75,17 +88,25 @@
 pip install pyyaml
 ```
 
-### 运行高级版分析 (推荐)
+### 运行分析（推荐使用统一 CLI）
 
 ```bash
-# 基础使用
-python harness_agent_advanced.py --bug "应用崩溃" --log test_log.txt
+# 完整分析
+python scripts/cli.py full --bug "应用崩溃" --log test_log.txt --format markdown
 
 # 使用bug描述文件
-python harness_agent_advanced.py --bug sample_bug.txt --log test_log.txt
+python scripts/cli.py full --bug sample_bug.txt --log test_log.txt --format all
 
-# 生成多种格式的报告
-python harness_agent_advanced.py --bug sample_bug.txt --log test_log.txt --format all
+# 分阶段执行
+python scripts/cli.py plan --bug sample_bug.txt --log test_log.txt
+python scripts/cli.py build --workflow-id <ID>
+python scripts/cli.py resume --workflow-id <ID>
+```
+
+### 使用高级版 Agent（兼容旧方式）
+
+```bash
+python scripts/harness_agent_advanced.py --bug sample_bug.txt --log test_log.txt --format all
 ```
 
 ### 统一 CLI（v8.0 新增，推荐）

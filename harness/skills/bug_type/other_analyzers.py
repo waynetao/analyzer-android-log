@@ -68,29 +68,14 @@ class PerformanceAnalyzer(BaseBugAnalyzer):
         return prompt
     
     def format_output(self, analysis: str) -> str:
-        return f"""# 性能问题分析报告
-
----
-
-## 1. 性能概要
-{analysis[:300]}
-
-## 2. 性能指标
-{analysis[300:600]}
-
-## 3. 瓶颈分析
-{analysis[600:1000]}
-
-## 4. 根因分析
-{analysis[1000:1300]}
-
-## 5. 优化方案
-{analysis[1300:1800]}
-"""
+        return f"# 性能问题分析报告\n\n{analysis}"
     
     def detect(self, log_analysis: Dict) -> bool:
         """检测是否是性能问题（简化版）"""
         exceptions = log_analysis.get("exceptions", [])
+        # 兼容 exceptions 为整数的情况
+        if isinstance(exceptions, int):
+            return False
         keywords = ["choreographer", "jank", "fps", "卡顿", "启动慢", "响应慢"]
         for exc in exceptions:
             text = str(exc).lower()
@@ -142,6 +127,8 @@ class NetworkAnalyzer(BaseBugAnalyzer):
     def detect(self, log_analysis: Dict) -> bool:
         """检测网络问题"""
         exceptions = log_analysis.get("exceptions", [])
+        if isinstance(exceptions, int):
+            return False
         keywords = ["timeout", "connection", "http", "network", "socket"]
         for exc in exceptions:
             text = str(exc).lower()
@@ -193,6 +180,8 @@ class PowerAnalyzer(BaseBugAnalyzer):
     def detect(self, log_analysis: Dict) -> bool:
         """检测功耗问题"""
         exceptions = log_analysis.get("exceptions", [])
+        if isinstance(exceptions, int):
+            return False
         keywords = ["wakelock", "battery", "power", "alarm"]
         for exc in exceptions:
             text = str(exc).lower()

@@ -25,7 +25,7 @@
 
 ---
 
-### ✅ 阶段2：日志证据匹配 (新增!)
+### ✅ 阶段2：日志证据匹配
 
 **文件位置**：[`harness/skills/log_evidence_matcher.py`](file:///workspace/harness/skills/log_evidence_matcher.py)
 
@@ -124,7 +124,7 @@
    - 修复建议（可操作）
    - 预防措施
 
-### 提示词结构（阶段2：log_evidence_matcher.py，待实现）
+### 提示词结构（阶段2：log_evidence_matcher.py，已实现）
 
 1. **系统角色**：日志证据鉴定专家
 2. **任务要求**：对照用户描述和日志
@@ -160,16 +160,16 @@
 
 ## 🚀 可以扩展的LLM阶段
 
-### 未来可能引入LLM的环节
+### 部分已实现，部分待引入
 
-| 阶段 | 功能说明 | 优先级 |
-|-----|---------|-------|
-| **Bug描述解析** | 自动提取包名、时间点、复现步骤 | 🟡 中 |
-| **日志过滤** | 智能筛选相关日志 | 🟢 高 |
-| **异常分类** | 自动识别异常类型和严重程度 | 🟡 中 |
-| **报告摘要** | 自动生成不同版本的报告 | 🟢 高 |
-| **修复验证** | 分析修复后的日志是否解决问题 | 🟡 中 |
-| **场景对话** | 回答用户针对分析的追问 | 🟢 高 |
+| 阶段 | 功能说明 | 状态 |
+|-----|---------|------|
+| **Bug描述解析** | 自动提取包名、时间点、复现步骤 | ✅ BugDescriptionParserSkill (v2.0) |
+| **日志过滤** | 智能筛选相关日志 | ✅ LogFilterSkill (v2.0) |
+| **异常分类** | 自动识别异常类型和严重程度 | ✅ ExceptionClassifierSkill (v2.0) + BugTypeAnalysisSkill (v6.0) |
+| **报告摘要** | 自动生成不同版本的报告 | ✅ EnhancedReportGenerationSkill (v7.0) |
+| **修复验证** | 分析修复后的日志是否解决问题 | 🟡 待实现 |
+| **场景对话** | 回答用户针对分析的追问 | 🟡 待实现 |
 
 ---
 
@@ -203,9 +203,13 @@ self.orchestrator.register_skill(ReportGenerationSkill())
 ## ✨ 总结
 
 ### 当前LLM使用情况
-- ✅ **2个阶段**引入LLM/智能分析
+- ✅ **6个阶段**引入LLM/智能分析
 - ✅ **阶段1**：高级分析后的LLM深度分析
-- ✅ **阶段2**：日志证据匹配和时间线构建 (新!)
+- ✅ **阶段2**：日志证据匹配和时间线构建
+- ✅ **阶段3**：Bug描述解析（BugDescriptionParserSkill）
+- ✅ **阶段4**：日志智能过滤（LogFilterSkill）
+- ✅ **阶段5**：异常分类（ExceptionClassifierSkill + BugTypeAnalysisSkill）
+- ✅ **阶段6**：增强报告生成（EnhancedReportGenerationSkill）
 - ✅ **有证据支撑**：所有LLM分析都基于关键日志
 - ✅ **高质量输出**：要求具体修复建议和预防措施
 - ✅ **多格式集成**：所有分析结果集成到所有报告格式

@@ -173,8 +173,9 @@ class LogContext:
 
 def setup_logging_from_env():
     """从环境变量读取日志配置并初始化"""
+    from harness.core.paths import PROJECT_ROOT_STR
     log_level = os.environ.get("LOG_LEVEL", "INFO")
-    log_dir = os.environ.get("LOG_DIR", os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "logs"))
+    log_dir = os.environ.get("LOG_DIR", os.path.join(PROJECT_ROOT_STR, "logs"))
     enable_file = os.environ.get("LOG_ENABLE_FILE", "true").lower() == "true"
     enable_console = os.environ.get("LOG_ENABLE_CONSOLE", "true").lower() == "true"
     json_format = os.environ.get("LOG_JSON_FORMAT", "false").lower() == "true"
@@ -195,11 +196,18 @@ def get_logger(name: Optional[str] = None) -> logging.Logger:
 
 
 def log_method_call(func):
-    """装饰器：记录方法调用"""
+    """装饰器：记录方法调用（过滤敏感参数）"""
+    _SENSITIVE_KEYS = {"api_key", "secret", "password", "token", "llm_api_key", "openai_api_key"}
+
     def wrapper(*args, **kwargs):
         logger = get_logger(func.__module__)
         class_name = args[0].__class__.__name__ if args else ""
-        logger.debug(f"调用: {class_name}.{func.__name__}(args={args[1:]}, kwargs={kwargs})")
+        # 过滤敏感参数值
+        safe_kwargs = {
+            k: ("***" if any(s in k.lower() for s in _SENSITIVE_KEYS) else v)
+            for k, v in kwargs.items()
+        }
+        logger.debug(f"调用: {class_name}.{func.__name__}(args=..., kwargs={safe_kwargs})")
         try:
             result = func(*args, **kwargs)
             logger.debug(f"完成: {class_name}.{func.__name__} -> {type(result).__name__}")

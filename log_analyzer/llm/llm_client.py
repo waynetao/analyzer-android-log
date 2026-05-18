@@ -65,10 +65,10 @@ class LLMClient:
                 logger.info(f"LLM 客户端初始化成功 - 模型: {self.model}")
             except Exception as e:
                 logger.warning(f"LLM 客户端初始化失败: {e}")
-                print("警告：LLM 客户端初始化失败，将使用模拟模式")
+                logger.warning("LLM 客户端初始化失败，将使用模拟模式")
 
         if self.use_mock:
-            print("提示：未配置有效的 API Key，将使用模拟模式（LLM 分析功能不可用）")
+            logger.info("未配置有效的 API Key，将使用模拟模式（LLM 分析功能不可用）")
 
     def chat_completion(
         self,

@@ -9,6 +9,9 @@ from harness.skills.bug_type import PromptTemplateManager
 import os
 import json
 from datetime import datetime
+from harness.core.logging import get_logger
+
+logger = get_logger(__name__)
 
 class LLMAnalysisSkill(LLMBasedSkill):
     """LLM 高级分析技能 - 高质量、有证据支撑
@@ -24,9 +27,9 @@ class LLMAnalysisSkill(LLMBasedSkill):
         self.enable_bug_type_optimization = enable_bug_type_optimization
         
         if not self.use_mock:
-            print(f"✅ LLM 客户端已初始化 (模型: {self.model})")
+            logger.info(f"LLM 客户端已初始化 (模型: {self.model})")
             if self.enable_bug_type_optimization:
-                print(f"✅ Bug 类型差异化优化已启用")
+                logger.info("Bug 类型差异化优化已启用")
     
     def execute(self, inputs: Dict[str, Any]) -> SkillResult:
         valid, msg = self._validate_inputs(inputs, ["bug_description", "advanced_log_analysis"])
@@ -41,10 +44,10 @@ class LLMAnalysisSkill(LLMBasedSkill):
             use_bug_type_optimization = self.enable_bug_type_optimization and inputs.get("bug_type_analysis", {}).get("data", {}).get("enabled", False)
             
             if use_bug_type_optimization:
-                print(f"🎯 使用 Bug 类型差异化分析")
+                logger.info("使用 Bug 类型差异化分析")
                 prompt, system_prompt = self._build_optimized_prompt(bug_desc, log_analysis, inputs.get("bug_type_analysis", {}).get("data", {}))
             else:
-                print(f"📝 使用标准分析模式")
+                logger.info("使用标准分析模式")
                 prompt = self._build_prompt(bug_desc, log_analysis)
                 system_prompt = "你是一位资深的Android技术支持专家，擅长日志分析和问题定位。"
             
@@ -131,37 +134,26 @@ class LLMAnalysisSkill(LLMBasedSkill):
         analyzer = PromptTemplateManager.get_analyzer(bug_type)
         
         if analyzer:
-            print(f"🔍 使用 {analyzer.name} 分析器")
+            logger.info(f"使用 {analyzer.name} 分析器")
             system_prompt = analyzer.get_system_prompt()
             user_prompt = analyzer.get_user_prompt(bug_desc, log_analysis)
             return user_prompt, system_prompt
         else:
-            print(f"⚠️ 未找到对应分析器，使用标准模式")
+            logger.warning("未找到对应分析器，使用标准模式")
             return self._build_prompt(bug_desc, log_analysis), "你是一位资深的Android技术支持专家，擅长日志分析和问题定位。"
     
     def _call_llm(self, prompt: str, system_prompt: str = None) -> str:
-        """调用LLM（或模拟）"""
+        """调用LLM（或模拟），通过基类方法确保Token统计"""
         if self.use_mock:
             return self._get_mock_analysis()
         
+        if system_prompt is None:
+            system_prompt = "你是一位资深的Android技术支持专家，擅长日志分析和问题定位。"
+        
         try:
-            if system_prompt is None:
-                system_prompt = "你是一位资深的Android技术支持专家，擅长日志分析和问题定位。"
-            
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.7,
-                max_tokens=4000
-            )
-            
-            return response.choices[0].message.content
-            
+            return super()._call_llm(system_prompt, prompt)
         except Exception as e:
-            print(f"LLM 调用失败: {e}")
+            logger.warning(f"LLM 调用失败: {e}")
             return self._get_mock_analysis()
     
     def _get_mock_analysis(self) -> str:

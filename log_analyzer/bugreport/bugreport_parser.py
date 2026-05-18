@@ -64,8 +64,8 @@ class BugReportParser:
                     entry = self._parse_line(line, file_path)
                     if entry:
                         entries.append(entry)
-        except Exception as e:
-            print(f"解析文件 {file_path} 失败: {e}")
+        except (OSError, UnicodeDecodeError) as e:
+            logger.warning(f"解析文件 {file_path} 失败: {e}")
         return entries
 
     def _parse_line(self, line: str, file_path: str) -> Optional[LogEntry]:

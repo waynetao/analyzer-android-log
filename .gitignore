@@ -61,4 +61,19 @@ Thumbs.db
 outputs/state/
 
 # Claude IDE
-.claude/
+# Claude
+.claude/settings.local.json
+.claude/logs/
+.claude/cache/
+.claude/.env*
+.claude/session-archives/
+
+# Trae
+.trae/settings.local.json
+.trae/cache/
+.trae/sessions/
+
+# CodeBuddy
+.codebuddy/settings.local.json
+.codebuddy/cache/
+.codebuddy/logs/

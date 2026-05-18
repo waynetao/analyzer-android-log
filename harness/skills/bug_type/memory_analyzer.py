@@ -124,6 +124,11 @@ class MemoryAnalyzer(BaseBugAnalyzer):
         low_memory = log_analysis.get("low_memory", 0)
         exceptions = log_analysis.get("exceptions", [])
         
+        # 兼容 exceptions 为整数（数量）或列表的情况
+        if isinstance(exceptions, int):
+            # exceptions 是数量时，仅通过 low_memory 判断
+            return low_memory > 0
+        
         has_oom = any("OutOfMemory" in str(exc) for exc in exceptions)
         
         return low_memory > 0 or has_oom

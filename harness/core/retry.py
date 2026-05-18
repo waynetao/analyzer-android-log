@@ -7,9 +7,9 @@ import time
 import functools
 from typing import Callable, Any, Optional, Tuple, Type
 from dataclasses import dataclass
-import logging
+from harness.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -251,12 +251,12 @@ class CircuitBreaker:
 
 
 class TimeoutManager:
-    """超时管理器"""
+    """超时管理器 - 跨平台兼容（Windows/Linux/macOS）"""
 
     @staticmethod
     def with_timeout(seconds: float, default: Any = None):
         """
-        超时装饰器
+        超时装饰器（使用 concurrent.futures 实现跨平台兼容）
 
         Args:
             seconds: 超时时间（秒）
@@ -271,26 +271,15 @@ class TimeoutManager:
         def decorator(func: Callable) -> Callable:
             @functools.wraps(func)
             def wrapper(*args, **kwargs) -> Any:
-                import signal
+                import concurrent.futures
 
-                def timeout_handler(signum, frame):
-                    raise TimeoutError(f"{func.__name__} 执行超时 ({seconds}秒)")
-
-                try:
-                    signal.signal(signal.SIGALRM, timeout_handler)
-                    signal.alarm(int(seconds))
-
-                    result = func(*args, **kwargs)
-
-                    signal.alarm(0)
-                    return result
-
-                except TimeoutError:
-                    logger.warning(f"{func.__name__} 执行超时 ({seconds}秒)")
-                    return default
-
-                finally:
-                    signal.alarm(0)
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(func, *args, **kwargs)
+                    try:
+                        return future.result(timeout=seconds)
+                    except concurrent.futures.TimeoutError:
+                        logger.warning(f"{func.__name__} 执行超时 ({seconds}秒)")
+                        return default
 
             return wrapper
 

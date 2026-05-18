@@ -11,8 +11,13 @@ from pathlib import Path
 import logging
 
 from harness.core.logging import get_logger
+from harness.core.paths import PROJECT_ROOT_STR, CONFIG_DIR_STR
 
 logger = get_logger(__name__)
+
+
+# 敏感字段列表，不会写入配置文件
+_SENSITIVE_FIELDS = {"llm_api_key"}
 
 
 @dataclass
@@ -49,8 +54,7 @@ class ConfigManager:
             return
 
         if config_dir is None:
-            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            config_dir = os.path.join(project_root, "config")
+            config_dir = CONFIG_DIR_STR
 
         self.config_dir = config_dir
         self.current_env = os.environ.get("ENV", "dev")
@@ -211,7 +215,7 @@ class ConfigManager:
         logger.info(f"配置已保存 (环境: {env})")
 
     def _save_to_file(self):
-        """保存配置到文件"""
+        """保存配置到文件（敏感字段不写入，仅从环境变量读取）"""
         config_file = os.path.join(self.config_dir, "config.yaml")
 
         data = {
@@ -219,8 +223,7 @@ class ConfigManager:
         }
 
         for env_name, config in self.configs.items():
-            data["environments"][env_name] = {
-                "llm_api_key": config.llm_api_key,
+            env_data = {
                 "llm_base_url": config.llm_base_url,
                 "llm_model": config.llm_model,
                 "llm_temperature": config.llm_temperature,
@@ -233,6 +236,10 @@ class ConfigManager:
                 "analysis_mode": config.analysis_mode,
                 "feature_flags": config.feature_flags
             }
+            # 敏感字段不写入文件
+            if config.llm_api_key:
+                env_data["llm_api_key"] = "***REDACTED***"
+            data["environments"][env_name] = env_data
 
         os.makedirs(self.config_dir, exist_ok=True)
 

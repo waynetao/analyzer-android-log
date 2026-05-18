@@ -195,3 +195,154 @@ class TestStateManager:
 
         # 验证所有完成的阶段都被记录
         assert len(manager.current_state["stages_completed"]) == 4
+
+
+class TestStateManagerDirtyFlag:
+    """脏标记 + 延迟写入测试"""
+
+    def test_mark_dirty_sets_flag(self, temp_state_dir):
+        """_mark_dirty 正确设置脏标记"""
+        manager = StateManager(state_dir=temp_state_dir)
+        manager.initialize_workflow("test_workflow")
+        manager._dirty = False
+        manager.update_context("key", "val")
+        assert manager._dirty is True
+
+    def test_flush_resets_dirty_flag(self, temp_state_dir):
+        """flush 后脏标记重置"""
+        manager = StateManager(state_dir=temp_state_dir)
+        manager.initialize_workflow("test_workflow")
+        manager.update_context("key", "val")
+        assert manager._dirty is True
+        manager.flush()
+        assert manager._dirty is False
+
+    def test_flush_skips_when_not_dirty(self, temp_state_dir):
+        """非脏状态时 flush 跳过写入"""
+        manager = StateManager(state_dir=temp_state_dir)
+        manager.initialize_workflow("test_workflow")
+        assert manager._dirty is False
+
+        # 修改内存状态但不通过 _mark_dirty
+        manager.current_state["context"]["sneaky"] = "value"
+        manager.flush()
+
+        # 重新加载，文件中不应包含 sneaky
+        workflow_id = manager.current_state["workflow_id"]
+        state_file = os.path.join(temp_state_dir, f"{workflow_id}.json")
+        with open(state_file, 'r', encoding='utf-8') as f:
+            saved = json.load(f)
+        assert "sneaky" not in saved.get("context", {})
+
+    def test_update_context_does_not_immediately_flush(self, temp_state_dir):
+        """update_context 只标记脏，不立即写盘"""
+        manager = StateManager(state_dir=temp_state_dir)
+        manager.initialize_workflow("test_workflow")
+        manager._dirty = False
+
+        # 记录修改时间
+        workflow_id = manager.current_state["workflow_id"]
+        state_file = os.path.join(temp_state_dir, f"{workflow_id}.json")
+        mtime_before = os.path.getmtime(state_file)
+
+        # update_context 只标记脏，不立即写盘
+        import time
+        time.sleep(0.05)
+        manager.update_context("key", "val")
+        assert manager._dirty is True
+
+        # 文件可能还没更新（因为 update_context 不 flush）
+        # 然后手动 flush
+        manager.flush()
+
+        # 确认文件已更新
+        with open(state_file, 'r', encoding='utf-8') as f:
+            saved = json.load(f)
+        assert saved["context"]["key"] == "val"
+
+    def test_add_validation_does_not_immediately_flush(self, temp_state_dir):
+        """add_validation_result 只标记脏，不立即写盘"""
+        manager = StateManager(state_dir=temp_state_dir)
+        manager.initialize_workflow("test_workflow")
+        manager._dirty = False
+
+        manager.add_validation_result("check1", True, "ok")
+        assert manager._dirty is True
+
+    def test_do_save_handles_os_error(self, temp_state_dir):
+        """_do_save 捕获 OSError 不抛异常"""
+        manager = StateManager(state_dir=temp_state_dir)
+        manager.initialize_workflow("test_workflow")
+
+        # 在 Linux 上可以用 chmod 限制写权限，Windows 上跳过
+        if os.name == 'nt':
+            pytest.skip("chmod 不适用于 Windows")
+
+        os.chmod(temp_state_dir, 0o444)
+        try:
+            manager._mark_dirty()
+            manager.flush()  # 不应抛出异常
+        finally:
+            os.chmod(temp_state_dir, 0o755)
+
+    def test_transition_stage_flushes_immediately(self, temp_state_dir):
+        """transition_stage 立即持久化"""
+        manager = StateManager(state_dir=temp_state_dir)
+        manager.initialize_workflow("test_workflow")
+
+        manager.transition_stage(WorkflowStage.BUILD)
+        assert manager._dirty is False
+
+        # 验证文件已更新
+        workflow_id = manager.current_state["workflow_id"]
+        state_file = os.path.join(temp_state_dir, f"{workflow_id}.json")
+        with open(state_file, 'r', encoding='utf-8') as f:
+            saved = json.load(f)
+        assert saved["current_stage"] == WorkflowStage.BUILD.value
+
+
+class TestStateManagerLoadState:
+    """load_state 方法测试"""
+
+    def test_load_state_success(self, temp_state_dir):
+        """成功加载已保存的工作流状态"""
+        manager = StateManager(state_dir=temp_state_dir)
+        workflow_id = manager.initialize_workflow("test_workflow")
+        manager.update_context("key", "value")
+        manager.flush()
+
+        # 新建 manager 并加载
+        manager2 = StateManager(state_dir=temp_state_dir)
+        state = manager2.load_state(workflow_id)
+        assert state["workflow_id"] == workflow_id
+        assert state["context"]["key"] == "value"
+
+    def test_load_state_raises_file_not_found(self, temp_state_dir):
+        """加载不存在的工作流抛出 FileNotFoundError"""
+        manager = StateManager(state_dir=temp_state_dir)
+        with pytest.raises(FileNotFoundError, match="不存在"):
+            manager.load_state("nonexistent_workflow_id")
+
+    def test_load_state_raises_value_error_for_corrupt_json(self, temp_state_dir):
+        """加载损坏的 JSON 文件抛出 ValueError"""
+        # 创建损坏的 JSON 文件
+        corrupt_file = os.path.join(temp_state_dir, "corrupt_workflow.json")
+        with open(corrupt_file, 'w') as f:
+            f.write("{invalid json")
+
+        manager = StateManager(state_dir=temp_state_dir)
+        with pytest.raises(ValueError, match="损坏"):
+            manager.load_state("corrupt_workflow")
+
+    def test_load_state_returns_deep_copy(self, temp_state_dir):
+        """load_state 返回深拷贝，不影响内部状态"""
+        manager = StateManager(state_dir=temp_state_dir)
+        workflow_id = manager.initialize_workflow("test_workflow")
+        manager.update_context("key", "value1")
+        manager.flush()
+
+        manager2 = StateManager(state_dir=temp_state_dir)
+        state = manager2.load_state(workflow_id)
+        # 修改返回值不应影响内部状态
+        state["context"]["key"] = "modified"
+        assert manager2.current_state["context"]["key"] == "value1"
