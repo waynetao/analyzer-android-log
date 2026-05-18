@@ -1,0 +1,19 @@
+name: Sync GitHub To Gitee
+on:
+  push:
+    branches: [ main, master ] # 你常用的分支名，都写上
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Sync to Gitee
+        uses: Yikun/hub-mirror-action@master
+        with:
+          src: github/${{ github.repository }}
+          dst: gitee/${{ secrets.GITEE_USER }}/${{ github.event.repository.name }}
+          dst_token: ${{ secrets.GITEE_TOKEN }}
