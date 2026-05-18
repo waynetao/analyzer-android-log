@@ -6,10 +6,19 @@ from openai import OpenAI
 from openai import RateLimitError, Timeout, APIError, APIConnectionError
 
 from harness.core.logging import get_logger
-from harness.core.token_stats import get_token_stats
 
 logger = get_logger(__name__)
-token_stats = get_token_stats()
+
+# 延迟导入 token_stats 以避免循环导入
+_token_stats = None
+
+def _get_token_stats():
+    """延迟获取 token_stats 实例"""
+    global _token_stats
+    if _token_stats is None:
+        from harness.core.token_stats import get_token_stats as _get_ts
+        _token_stats = _get_ts()
+    return _token_stats
 
 
 class LLMClient:
@@ -195,7 +204,7 @@ class LLMClient:
                 prompt_tokens = getattr(response.usage, 'prompt_tokens', 0)
                 completion_tokens = getattr(response.usage, 'completion_tokens', 0)
 
-                token_stats.record_usage(
+                _get_token_stats().record_usage(
                     prompt_tokens=prompt_tokens,
                     completion_tokens=completion_tokens,
                     model=self.model,

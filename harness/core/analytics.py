@@ -11,10 +11,19 @@ from dataclasses import dataclass, field, asdict
 from collections import defaultdict
 
 from .logging import get_logger
-from .token_stats import get_token_stats
 
 logger = get_logger(__name__)
-token_stats = get_token_stats()
+
+# 延迟导入 token_stats 以避免循环导入
+_token_stats = None
+
+def _get_token_stats():
+    """延迟获取 token_stats 实例"""
+    global _token_stats
+    if _token_stats is None:
+        from .token_stats import get_token_stats as _get_ts
+        _token_stats = _get_ts()
+    return _token_stats
 
 
 @dataclass
@@ -39,6 +48,12 @@ class SkillMetrics:
         if self.execution_count == 0:
             return 0.0
         return self.total_duration_ms / self.execution_count
+    
+    def record_duration(self, duration_ms: float):
+        """记录一次执行耗时"""
+        self.total_duration_ms += duration_ms
+        self.min_duration_ms = min(self.min_duration_ms, duration_ms)
+        self.max_duration_ms = max(self.max_duration_ms, duration_ms)
 
 
 @dataclass
@@ -154,7 +169,7 @@ class AnalyticsCollector:
         self._save_workflow_report()
         
         # 保存 Token 统计
-        token_stats.save_session(f"token_stats_{self.current_workflow.workflow_id}.json")
+        _get_token_stats().save_session(f"token_stats_{self.current_workflow.workflow_id}.json")
         
         logger.info(f"工作流结束: {self.current_workflow.workflow_id}, 状态: {status}, 耗时: {self.current_workflow.duration_ms:.2f}ms")
         
@@ -275,8 +290,8 @@ class AnalyticsCollector:
                 "total_execution_time_ms": self.system_metrics.total_execution_time_ms,
                 "avg_execution_time_ms": self._calc_avg_execution_time()
             },
-            "token_usage": token_stats.get_summary(),
-            "token_cost_estimate": token_stats.estimate_cost(),
+            "token_usage": _get_token_stats().get_summary(),
+            "token_cost_estimate": _get_token_stats().estimate_cost(),
             "skill_performance": self._get_skill_performance(),
             "stage_performance": self._get_stage_performance(),
             "bug_type_distribution": self.system_metrics.bug_type_distribution,

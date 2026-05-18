@@ -100,8 +100,9 @@ def test_skill_files():
     print("4. 测试Skill文件")
     print("=" * 60)
     
-    skill_path = os.path.join(PROJECT_ROOT, ".claude/skills/loggrep-analyzer/SKILL.md")
-    commands_path = os.path.join(PROJECT_ROOT, ".claude/skills/loggrep-analyzer/references/commands.md")
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    skill_path = os.path.join(project_root, ".claude/skills/loggrep-analyzer/SKILL.md")
+    commands_path = os.path.join(project_root, ".claude/skills/loggrep-analyzer/references/commands.md")
     
     files_to_check = [
         ("主Skill文件", skill_path),

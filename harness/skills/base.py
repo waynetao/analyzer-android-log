@@ -11,10 +11,16 @@ from harness.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-# 使用我们的 LLMClient
-from log_analyzer.llm.llm_client import LLMClient
+# 延迟导入 LLMClient 以避免循环导入
+_LLMClient = None
 
-HAS_LLM_CLIENT = True
+def _get_llm_client():
+    """延迟获取 LLMClient 类"""
+    global _LLMClient
+    if _LLMClient is None:
+        from log_analyzer.llm.llm_client import LLMClient as _LC
+        _LLMClient = _LC
+    return _LLMClient
 
 @dataclass
 class SkillResult:
@@ -83,17 +89,18 @@ class LLMBasedSkill(BaseSkill):
     
     def _init_llm_client(self) -> None:
         """初始化LLM客户端"""
-        if HAS_LLM_CLIENT:
-            try:
+        try:
+            LLMClient = _get_llm_client()
+            if LLMClient:
                 self.client = LLMClient(
                     api_key=self.api_key,
                     base_url=self.base_url,
                     model=self.model
                 )
                 self.use_mock = self.client.use_mock
-            except Exception as e:
-                logger.warning(f"Failed to initialize LLM client: {e}")
-                self.use_mock = True
+        except Exception as e:
+            logger.warning(f"Failed to initialize LLM client: {e}")
+            self.use_mock = True
     
     def _call_llm(
         self,

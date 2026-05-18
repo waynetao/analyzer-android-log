@@ -7,12 +7,30 @@ import time
 from typing import Dict, Any, List, Optional
 from .context import ContextEngine
 from .state import StateManager, WorkflowStage
-from ..skills.base import BaseSkill
-from ..policies.base import BasePolicy
 from .logging import get_logger
 from .analytics import get_analytics_collector
 
 logger = get_logger(__name__)
+
+# 延迟导入以避免循环导入
+_BaseSkill = None
+_BasePolicy = None
+
+def _get_base_skill():
+    """延迟获取 BaseSkill 类"""
+    global _BaseSkill
+    if _BaseSkill is None:
+        from ..skills.base import BaseSkill as _BS
+        _BaseSkill = _BS
+    return _BaseSkill
+
+def _get_base_policy():
+    """延迟获取 BasePolicy 类"""
+    global _BasePolicy
+    if _BasePolicy is None:
+        from ..policies.base import BasePolicy as _BP
+        _BasePolicy = _BP
+    return _BasePolicy
 
 
 class Orchestrator:
@@ -23,18 +41,18 @@ class Orchestrator:
     ):
         self.context_engine = context_engine
         self.state_manager = state_manager
-        self.skills: Dict[str, BaseSkill] = {}
-        self.policies: List[BasePolicy] = []
+        self.skills: Dict[str, Any] = {}
+        self.policies: List[Any] = []
         self.analytics = get_analytics_collector()
         logger.info("Orchestrator 已初始化")
     
-    def register_skill(self, skill: BaseSkill):
+    def register_skill(self, skill: Any):
         """注册技能（可插拔）"""
         self.skills[skill.name] = skill
         print(f"✅ 技能已注册: {skill.name}")
         logger.info(f"技能注册成功: {skill.name} (共 {len(self.skills)} 个技能)")
     
-    def register_policy(self, policy: BasePolicy):
+    def register_policy(self, policy: Any):
         """注册策略（约束和验证）"""
         self.policies.append(policy)
         print(f"📋 策略已加载: {policy.name}")
