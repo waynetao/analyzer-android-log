@@ -169,8 +169,10 @@ class AnalyticsCollector:
         # 保存工作流报告
         self._save_workflow_report()
         
-        # 保存 Token 统计
-        _get_token_stats().save_session(f"token_stats_{self.current_workflow.workflow_id}.json")
+        ts = _get_token_stats()
+        if self.current_workflow and self.current_workflow.workflow_id:
+            ts.set_workflow_dir(self.current_workflow.workflow_id)
+        ts.save_session(f"token_stats_{self.current_workflow.workflow_id}.json")
         
         logger.info(f"工作流结束: {self.current_workflow.workflow_id}, 状态: {status}, 耗时: {self.current_workflow.duration_ms:.2f}ms")
         

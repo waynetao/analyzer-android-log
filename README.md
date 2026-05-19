@@ -195,7 +195,21 @@ python scripts/ffctl.py set llm_analysis_enabled --percentage 50
 │   ├── AGENTS.md                     # 架构设计文档
 │   └── ...                           # 其他文档
 ├── data/                             # 示例数据
-├── outputs/                          # 输出目录
+├── outputs/                          # 输出目录（按 workflow ID 隔离）
+│   ├── index/                        # 全局：工作流索引
+│   ├── case_library/                 # 全局：案例库
+│   ├── openviking_data/              # 全局：OpenViking 记忆
+│   ├── logs/                         # 全局：应用日志
+│   └── workflows/{id}/              # Per-Workflow 产物
+│       ├── state/                    #   状态文件
+│       ├── extracted/                #   解压产物
+│       ├── analysis/                 #   分析结果
+│       ├── reports/                  #   报告
+│       ├── analytics/                #   Token 统计
+│       ├── logs/                     #   工作流日志
+│       ├── llm_interactions/         #   LLM 交互日志
+│       ├── artifacts/                #   其他产物
+│       └── temp/                     #   临时文件
 ├── requirements.txt                  # Python 依赖
 ├── docker-compose.yaml               # Docker 配置
 └── README.md                         # 项目说明

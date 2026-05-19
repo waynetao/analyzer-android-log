@@ -7,6 +7,46 @@
 
 ---
 
+## [9.1.0] - 2026-05-19
+
+### 修复
+
+- 🔧 **outputs 根目录冗余空目录清理**
+  - `ensure_dirs()` 不再预创建 `reports/`、`state/`、`temp/`、`analytics/` 全局目录
+  - 全局目录仅保留真正跨 workflow 共享的 4 个：`index/`、`case_library/`、`openviking_data/`、`logs/`
+  - Legacy 全局常量（`OUTPUTS_REPORTS_DIR` 等）保留做兼容回退，标记为 Legacy
+
+- 🔧 **per-workflow 产物路径全面对齐**
+  - `token_stats.py` 新增 `set_workflow_dir()` 方法，Token 统计保存到 `workflows/{id}/analytics/`
+  - `analytics.py` 的 `end_workflow()` 自动调用 `token_stats.set_workflow_dir()`
+  - `enhanced_report_generation.py` 支持 `workflow_id` 参数，报告输出到 `workflows/{id}/reports/`
+  - `llm_client.py` 使用 `WorkflowPaths.llm_interactions_dir_str` 替代手动拼接路径
+
+- 🔧 **WorkflowPaths 新增 `llm_interactions_dir`**
+  - 每个工作流独立的 LLM 交互日志目录 `workflows/{id}/llm_interactions/`
+  - `ensure_dirs()` 自动创建该目录
+  - 新增 `llm_interactions_dir_str` 便捷属性
+
+- 🔧 **CLI 脚本路径信息更新**
+  - `cli.py`、`harness_agent.py`、`harness_agent_advanced.py` 移除旧全局路径导入
+  - 报告保存路径提示更新为 `workflows/{id}/reports/`
+
+### 测试
+
+- ✅ 新增 6 个测试（总计 69 个 v9 优化测试，271 个全量测试全部通过）
+  - `test_llm_interactions_dir_exists` - LLM 交互日志目录创建
+  - `test_ensure_dirs_no_legacy_global_dirs` - 确保不再创建 legacy 全局目录
+  - `test_set_workflow_dir` - TokenStats workflow 目录切换
+  - `test_set_workflow_dir_saves_to_correct_path` - TokenStats 保存到正确路径
+  - `test_enhanced_report_with_workflow_id` - 增强报告 workflow_id 支持
+  - `test_enhanced_report_without_workflow_id` - 增强报告无 workflow_id 回退
+
+### 文档
+
+- 📚 更新 `CHANGELOG.md` - v9.1.0 变更记录
+
+---
+
 ## [9.0.0] - 2026-05-19
 
 ### 新增
@@ -327,6 +367,7 @@
 
 | 版本 | 日期 | 主要变更 |
 |------|------|---------|
+| 9.1.0 | 2026-05-19 | outputs 目录清理 + per-workflow 产物路径对齐 |
 | 9.0.0 | 2026-05-19 | 多轮分析 + 工作流索引 + 产物管理 |
 | 8.0.0 | 2026-05-18 | 统一 CLI 入口 + 分阶段执行 + 断点恢复 |
 | 7.0.0 | 2026-05-17 | 记忆系统（Simple/OpenViking）双模集成 |

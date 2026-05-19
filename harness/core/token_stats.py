@@ -56,22 +56,28 @@ class TokenStatsManager:
             if hasattr(self, '_initialized'):
                 return
 
-            # 存储路径
             self._storage_dir = os.environ.get(
                 "TOKEN_STATS_DIR",
                 OUTPUTS_TOKEN_STATS_DIR_STR
             )
             os.makedirs(self._storage_dir, exist_ok=True)
 
-            # 统计数据
             self._session_stats: Dict[str, TokenUsage] = {}
             self._total_stats = TokenUsage()
 
-            # 加载历史统计
             self._load_history()
 
             self._initialized = True
             logger.info("TokenStatsManager 初始化完成")
+
+    def set_workflow_dir(self, workflow_id: str):
+        """切换到 workflow 专属存储目录"""
+        from .paths import WorkflowPaths
+        wp = WorkflowPaths(workflow_id)
+        wp.ensure_dirs()
+        self._storage_dir = wp.analytics_dir_str
+        os.makedirs(self._storage_dir, exist_ok=True)
+        logger.info(f"TokenStats 切换到 workflow 目录: {self._storage_dir}")
 
     def record_usage(
         self,

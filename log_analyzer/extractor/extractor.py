@@ -5,32 +5,24 @@ import shutil
 import logging
 from typing import Optional
 
-from harness.core.paths import OUTPUTS_TEMP_DIR_STR, WorkflowPaths
+from harness.core.paths import WorkflowPaths
 
 logger = logging.getLogger(__name__)
 
 
 class LogExtractor:
     def __init__(self, temp_dir: str = None, workflow_id: str = None):
-        """初始化日志提取器
-        
-        Args:
-            temp_dir: 临时目录（可选，优先使用）
-            workflow_id: 工作流 ID（可选，如果提供则使用 WorkflowPaths 管理）
-        """
         if workflow_id:
-            # 使用工作流专属路径
             self.workflow_paths = WorkflowPaths(workflow_id).ensure_dirs()
-            self.temp_dir = self.workflow_paths.temp_dir_str
+            self.temp_dir = self.workflow_paths.extracted_dir_str
             self._use_workflow_paths = True
         else:
-            # 使用全局临时目录（向后兼容）
-            self.temp_dir = temp_dir or OUTPUTS_TEMP_DIR_STR
+            self.temp_dir = temp_dir or os.path.join(os.getcwd(), "outputs", "temp")
             self._use_workflow_paths = False
         
         if not os.path.exists(self.temp_dir):
             os.makedirs(self.temp_dir)
-        logger.debug(f"LogExtractor 初始化，临时目录: {self.temp_dir}")
+        logger.debug(f"LogExtractor 初始化，解压目录: {self.temp_dir}")
 
     @staticmethod
     def _is_safe_path(member_path: str, extract_dir: str) -> bool:

@@ -20,15 +20,20 @@ DATA_DIR = PROJECT_ROOT / "data"
 
 # 运行时产物目录（全部归入 outputs/，不纳入版本管理）
 OUTPUTS_DIR = PROJECT_ROOT / "outputs"
+
+# 全局共享目录（跨 workflow）
+OUTPUTS_INDEX_DIR = OUTPUTS_DIR / "index"
+OUTPUTS_CASE_LIBRARY_DIR = OUTPUTS_DIR / "case_library"
+OUTPUTS_OPENVIKING_DIR = OUTPUTS_DIR / "openviking_data"
+OUTPUTS_LOGS_DIR = OUTPUTS_DIR / "logs"
+
+# Legacy 全局目录（已迁移到 workflows/{id}/ 下，保留常量做兼容回退）
 OUTPUTS_REPORTS_DIR = OUTPUTS_DIR / "reports"
 OUTPUTS_STATE_DIR = OUTPUTS_DIR / "state"
-OUTPUTS_INDEX_DIR = OUTPUTS_DIR / "index"        # 工作流索引目录
-OUTPUTS_TEMP_DIR = OUTPUTS_DIR / "temp"         # 全局临时目录
-OUTPUTS_LOGS_DIR = OUTPUTS_DIR / "logs"         # 应用日志
-OUTPUTS_ANALYTICS_DIR = OUTPUTS_DIR / "analytics"  # 统计分析
-OUTPUTS_CASE_LIBRARY_DIR = OUTPUTS_DIR / "case_library"  # 案例库
-OUTPUTS_OPENVIKING_DIR = OUTPUTS_DIR / "openviking_data"  # OpenViking 记忆
-OUTPUTS_TOKEN_STATS_DIR = OUTPUTS_DIR / "analytics"  # Token 统计（与 analytics 共用）
+OUTPUTS_TEMP_DIR = OUTPUTS_DIR / "temp"
+OUTPUTS_ANALYTICS_DIR = OUTPUTS_DIR / "analytics"
+OUTPUTS_TOKEN_STATS_DIR = OUTPUTS_DIR / "analytics"
+
 BUG_DATA_DIR = DATA_DIR / "bug_data"
 
 
@@ -42,6 +47,7 @@ class WorkflowPaths:
     ├── index/                  ← 全局：工作流索引
     ├── case_library/           ← 全局：案例库（跨 workflow 共享）
     ├── openviking_data/        ← 全局：OpenViking 记忆
+    ├── logs/                   ← 全局：应用日志（非 workflow 日志）
     └── workflows/{id}/
         ├── state/              ← 工作流状态文件
         ├── extracted/          ← 解压产物
@@ -49,6 +55,7 @@ class WorkflowPaths:
         ├── reports/            ← 生成的报告
         ├── analytics/          ← Token 统计、执行指标
         ├── logs/               ← 工作流日志
+        ├── llm_interactions/   ← LLM 交互日志
         ├── artifacts/          ← 其他产物
         └── temp/               ← 临时文件（可安全清理）
     """
@@ -64,6 +71,7 @@ class WorkflowPaths:
         self.reports_dir = self.workflow_root / "reports"
         self.analytics_dir = self.workflow_root / "analytics"
         self.logs_dir = self.workflow_root / "logs"
+        self.llm_interactions_dir = self.workflow_root / "llm_interactions"
         self.artifacts_dir = self.workflow_root / "artifacts"
         
     def ensure_dirs(self):
@@ -77,6 +85,7 @@ class WorkflowPaths:
             self.reports_dir,
             self.analytics_dir,
             self.logs_dir,
+            self.llm_interactions_dir,
             self.artifacts_dir,
         ]
         for dir_path in dirs_to_create:
@@ -119,21 +128,24 @@ class WorkflowPaths:
     @property
     def analytics_dir_str(self) -> str:
         return str(self.analytics_dir)
+    
+    @property
+    def llm_interactions_dir_str(self) -> str:
+        return str(self.llm_interactions_dir)
 
 
 # 确保必要目录存在
 def ensure_dirs():
-    """确保所有必要的目录存在"""
+    """确保所有必要的全局目录存在
+    
+    只创建全局共享目录，per-workflow 目录由 WorkflowPaths.ensure_dirs() 管理
+    """
     dirs_to_create = [
         OUTPUTS_DIR,
-        OUTPUTS_REPORTS_DIR,
-        OUTPUTS_STATE_DIR,
         OUTPUTS_INDEX_DIR,
-        OUTPUTS_TEMP_DIR,
-        OUTPUTS_LOGS_DIR,
-        OUTPUTS_ANALYTICS_DIR,
         OUTPUTS_CASE_LIBRARY_DIR,
         OUTPUTS_OPENVIKING_DIR,
+        OUTPUTS_LOGS_DIR,
         BUG_DATA_DIR,
     ]
     for dir_path in dirs_to_create:

@@ -140,9 +140,22 @@ python scripts/cli.py resume --workflow-id <ID>
 - PDF (via HTML)
 
 ## 6. 默认输出目录
-- bug分析输出：`outputs/bug_analysis/`
-- 报告输出：`outputs/reports/`
-- 中间状态：`outputs/state/`
+
+### 全局共享目录（跨 workflow）
+- 工作流索引：`outputs/index/`
+- 案例库：`outputs/case_library/`
+- OpenViking 记忆：`outputs/openviking_data/`
+- 应用日志：`outputs/logs/`
+
+### Per-Workflow 目录（按 workflow ID 隔离）
+- 状态文件：`outputs/workflows/{id}/state/`
+- 解压产物：`outputs/workflows/{id}/extracted/`
+- 分析结果：`outputs/workflows/{id}/analysis/`
+- 报告输出：`outputs/workflows/{id}/reports/`
+- Token 统计：`outputs/workflows/{id}/analytics/`
+- 工作流日志：`outputs/workflows/{id}/logs/`
+- LLM 交互日志：`outputs/workflows/{id}/llm_interactions/`
+- 临时文件：`outputs/workflows/{id}/temp/`
 
 ## 7. Feature Flag 控制 (v6.0+)
 参见：`config/feature_flags.yaml`

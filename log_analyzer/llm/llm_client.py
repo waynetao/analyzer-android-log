@@ -293,25 +293,22 @@ class LLMClient:
         import json
         from datetime import datetime
         
-        # 确定输出目录
         output_dir = None
         workflow_id = None
         
-        # 尝试从 scene 中提取 workflow_id（scene 格式: bug_analysis_{id}）
         if scene:
             scene_parts = scene.split('_')
             if len(scene_parts) >= 3:
                 from harness.core.paths import WorkflowPaths
-                # 尝试常见的 workflow id 模式
                 for i in range(2, len(scene_parts) + 1):
                     candidate_id = '_'.join(scene_parts[-i:])
                     candidate_path = WorkflowPaths(candidate_id)
                     if candidate_path.workflow_root and os.path.exists(candidate_path.workflow_root):
                         workflow_id = candidate_id
-                        output_dir = str(candidate_path.workflow_root) + '/llm_interactions'
+                        candidate_path.ensure_dirs()
+                        output_dir = candidate_path.llm_interactions_dir_str
                         break
         
-        # 回退到全局目录
         if not output_dir:
             from harness.core.paths import OUTPUTS_DIR
             output_dir = str(OUTPUTS_DIR) + '/llm_interactions'
