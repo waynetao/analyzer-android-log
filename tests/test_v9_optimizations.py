@@ -628,6 +628,7 @@ class TestWorkflowPathsNewDirs:
         assert isinstance(paths.extracted_dir_str, str)
         assert isinstance(paths.analysis_dir_str, str)
         assert isinstance(paths.reports_dir_str, str)
+        assert isinstance(paths.llm_interactions_dir_str, str)
 
     def test_all_dirs_created(self, temp_output_dir):
         """测试所有目录都被创建"""
@@ -638,10 +639,30 @@ class TestWorkflowPathsNewDirs:
         expected_dirs = [
             paths.temp_dir, paths.extracted_dir, paths.state_dir,
             paths.analysis_dir, paths.reports_dir, paths.analytics_dir,
-            paths.logs_dir, paths.artifacts_dir
+            paths.logs_dir, paths.llm_interactions_dir, paths.artifacts_dir
         ]
         for d in expected_dirs:
             assert os.path.exists(d), f"目录 {d} 未创建"
+
+    def test_llm_interactions_dir_exists(self, temp_output_dir):
+        """测试 llm_interactions 目录创建"""
+        from harness.core.paths import WorkflowPaths
+        paths = WorkflowPaths("test_wf_llm")
+        paths.ensure_dirs()
+        assert os.path.exists(paths.llm_interactions_dir)
+        assert os.path.exists(paths.llm_interactions_dir_str)
+
+    def test_ensure_dirs_no_legacy_global_dirs(self, temp_output_dir):
+        """测试 ensure_dirs 不再创建 legacy 全局目录"""
+        from harness.core.paths import ensure_dirs, OUTPUTS_DIR
+        import shutil
+        test_root = os.path.join(temp_output_dir, "ensure_dirs_test")
+        os.makedirs(test_root, exist_ok=True)
+        
+        legacy_dirs = ["reports", "state", "temp", "analytics"]
+        for d in legacy_dirs:
+            full_path = os.path.join(test_root, d)
+            assert not os.path.exists(full_path), f"legacy 全局目录 {d} 不应被 ensure_dirs 创建"
 
 
 # ============================================================
@@ -995,6 +1016,121 @@ class TestAnalyticsThreadSafety:
             
             assert "test_wf_analytics_dir" in collector.analytics_dir
             assert os.path.exists(collector.analytics_dir)
+        finally:
+            if original:
+                os.environ['OUTPUTS_BASE_DIR'] = original
+            else:
+                os.environ.pop('OUTPUTS_BASE_DIR', None)
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+# ============================================================
+# 12. TokenStatsManager workflow 目录切换
+# ============================================================
+class TestTokenStatsWorkflowDir:
+    """TokenStatsManager set_workflow_dir 测试"""
+
+    def test_set_workflow_dir(self):
+        """测试切换到 workflow 专属目录"""
+        from harness.core.token_stats import TokenStatsManager
+        temp_dir = tempfile.mkdtemp()
+        original = os.environ.get('OUTPUTS_BASE_DIR')
+        os.environ['OUTPUTS_BASE_DIR'] = temp_dir
+        
+        try:
+            mgr = TokenStatsManager()
+            mgr.set_workflow_dir("test_wf_token")
+            
+            assert "test_wf_token" in mgr._storage_dir
+            assert "analytics" in mgr._storage_dir
+            assert os.path.exists(mgr._storage_dir)
+        finally:
+            if original:
+                os.environ['OUTPUTS_BASE_DIR'] = original
+            else:
+                os.environ.pop('OUTPUTS_BASE_DIR', None)
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+    def test_set_workflow_dir_saves_to_correct_path(self):
+        """测试保存文件到 workflow 目录"""
+        from harness.core.token_stats import TokenStatsManager
+        temp_dir = tempfile.mkdtemp()
+        original = os.environ.get('OUTPUTS_BASE_DIR')
+        os.environ['OUTPUTS_BASE_DIR'] = temp_dir
+        
+        try:
+            mgr = TokenStatsManager()
+            mgr.set_workflow_dir("test_wf_save")
+            mgr.record_usage(100, 50, "test-model", scene="test")
+            mgr.save_session("test_token_stats.json")
+            
+            saved_path = os.path.join(mgr._storage_dir, "test_token_stats.json")
+            assert os.path.exists(saved_path)
+        finally:
+            if original:
+                os.environ['OUTPUTS_BASE_DIR'] = original
+            else:
+                os.environ.pop('OUTPUTS_BASE_DIR', None)
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+# ============================================================
+# 13. EnhancedReportGenerationSkill workflow_id 支持
+# ============================================================
+class TestEnhancedReportWorkflowId:
+    """EnhancedReportGenerationSkill workflow_id 测试"""
+
+    def test_enhanced_report_with_workflow_id(self):
+        """测试有 workflow_id 时输出到 workflow 目录"""
+        from harness.skills.enhanced_report_generation import EnhancedReportGenerationSkill
+        temp_dir = tempfile.mkdtemp()
+        original = os.environ.get('OUTPUTS_BASE_DIR')
+        os.environ['OUTPUTS_BASE_DIR'] = temp_dir
+        
+        try:
+            skill = EnhancedReportGenerationSkill()
+            inputs = {
+                "bug_description": {"summary": "test", "keywords": ["crash"]},
+                "workflow_id": "test_wf_report",
+                "output_format": "json",
+                "aloggrep_workflow": {
+                    "data": {
+                        "stages": {},
+                        "executive_summary": ""
+                    }
+                }
+            }
+            result = skill.execute(inputs)
+            assert result.success
+            assert "test_wf_report" in result.data.get("report_files", [""])[0]
+        finally:
+            if original:
+                os.environ['OUTPUTS_BASE_DIR'] = original
+            else:
+                os.environ.pop('OUTPUTS_BASE_DIR', None)
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+    def test_enhanced_report_without_workflow_id(self):
+        """测试无 workflow_id 时回退到全局目录"""
+        from harness.skills.enhanced_report_generation import EnhancedReportGenerationSkill
+        temp_dir = tempfile.mkdtemp()
+        original = os.environ.get('OUTPUTS_BASE_DIR')
+        os.environ['OUTPUTS_BASE_DIR'] = temp_dir
+        
+        try:
+            skill = EnhancedReportGenerationSkill()
+            inputs = {
+                "bug_description": {"summary": "test", "keywords": ["crash"]},
+                "output_format": "json",
+                "aloggrep_workflow": {
+                    "data": {
+                        "stages": {},
+                        "executive_summary": ""
+                    }
+                }
+            }
+            result = skill.execute(inputs)
+            assert result.success
         finally:
             if original:
                 os.environ['OUTPUTS_BASE_DIR'] = original
