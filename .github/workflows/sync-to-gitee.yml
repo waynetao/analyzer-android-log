@@ -7,13 +7,21 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Mirror the Github organization repos to Gitee.
+      - name: Mirror from GitHub to Gitee
         uses: Yikun/hub-mirror-action@master
         with:
           src: github/${{ github.repository_owner }}
+          # 👇 新增：从 GitHub 拉取代码，也用这把同步钥匙
+          src_key: ${{ secrets.SYNC_SSH_PRIVATE_KEY }}
+          
           dst: gitee/${{ secrets.GITEE_USER }}
-          dst_key: ${{ secrets.GITEE_PRIVATE_KEY }}
+          # 👇 修改：推送到 Gitee，同样用这把同步钥匙
+          dst_key: ${{ secrets.SYNC_SSH_PRIVATE_KEY }}
           dst_token: ${{ secrets.GITEE_TOKEN }}
+          
+          # 👇 新增：明确指定使用 SSH 方式克隆（非常重要）
+          clone_style: "ssh"
+          
           account_type: user
           static_list: "analyzer-android-log"
           force_update: true
