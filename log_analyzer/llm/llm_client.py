@@ -2,12 +2,36 @@ import os
 import json
 import time
 from typing import Optional, Dict, Any, Tuple
-from openai import OpenAI
-from openai import RateLimitError, APITimeoutError, APIError, APIConnectionError
 
 from harness.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+_OpenAI = None
+_RateLimitError = None
+_APITimeoutError = None
+_APIError = None
+_APIConnectionError = None
+
+
+def _ensure_openai_imported():
+    """延迟导入 openai 包，避免未安装时整个模块不可用"""
+    global _OpenAI, _RateLimitError, _APITimeoutError, _APIError, _APIConnectionError
+    if _OpenAI is not None:
+        return
+    try:
+        from openai import OpenAI as _O
+        from openai import RateLimitError as _RLE
+        from openai import APITimeoutError as _ATE
+        from openai import APIError as _AE
+        from openai import APIConnectionError as _ACE
+        _OpenAI = _O
+        _RateLimitError = _RLE
+        _APITimeoutError = _ATE
+        _APIError = _AE
+        _APIConnectionError = _ACE
+    except ImportError:
+        logger.warning("openai 包未安装，LLM 功能不可用。请运行: pip install openai")
 
 # 延迟导入 token_stats 以避免循环导入
 _token_stats = None
@@ -56,7 +80,10 @@ class LLMClient:
 
         if self.api_key:
             try:
-                self.client = OpenAI(
+                _ensure_openai_imported()
+                if _OpenAI is None:
+                    raise ImportError("openai 包不可用")
+                self.client = _OpenAI(
                     api_key=self.api_key,
                     base_url=self.base_url,
                     timeout=self.timeout
@@ -126,7 +153,7 @@ class LLMClient:
                     scene, skill
                 )
 
-            except RateLimitError as e:
+            except _RateLimitError as e:
                 last_error = e
                 wait_time = self._get_retry_delay(attempt, e)
                 logger.warning(
@@ -136,7 +163,7 @@ class LLMClient:
                 if attempt < self.max_retries - 1:
                     time.sleep(wait_time)
 
-            except (APIError, APIConnectionError, APITimeoutError) as e:
+            except (_APIError, _APIConnectionError, _APITimeoutError) as e:
                 last_error = e
                 wait_time = self._get_retry_delay(attempt, e)
                 logger.warning(
@@ -235,7 +262,7 @@ class LLMClient:
         base_delay = 1.0
 
         # 速率限制错误通常需要更长的等待时间
-        if isinstance(error, RateLimitError):
+        if isinstance(error, _RateLimitError):
             base_delay = 5.0
             if hasattr(error, 'response'):
                 retry_after = error.response.headers.get('retry-after')

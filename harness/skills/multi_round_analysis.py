@@ -3,6 +3,7 @@ MultiRoundAnalysisSkill - 多轮深度分析技能
 采用三轮对话流程，实现深度日志分析
 """
 from typing import Dict, Any, List
+import re
 from .base import BaseSkill, SkillResult, LLMBasedSkill
 from harness.core.logging import get_logger
 
@@ -265,16 +266,27 @@ class MultiRoundAnalysisSkill(LLMBasedSkill):
     
     def _extract_key_findings(self, text: str) -> List[str]:
         """提取关键发现"""
-        # 简单的关键词提取
         findings = []
-        lines = text.split("\n")
-        for line in lines:
+        patterns = [
+            r'^\d+\.\s+\*\*(.+?)\*\*',
+            r'^-\s+\*\*(.+?)\*\*',
+            r'^###\s+(.+)$',
+            r'(.{0,20}(?:发现|根因|崩溃|异常|ANR|内存泄漏|NullPointerException).{0,80})',
+        ]
+        for line in text.split("\n"):
             line = line.strip()
-            if line and (line.startswith("1.") or line.startswith("2.") or 
-                        line.startswith("3.") or "发现" in line or 
-                        ":" in line):
-                findings.append(line[:100])
-        return findings[:5]
+            if not line:
+                continue
+            for pattern in patterns:
+                match = re.search(pattern, line)
+                if match:
+                    finding = match.group(1).strip()
+                    if len(finding) > 5 and finding not in findings:
+                        findings.append(finding[:100])
+                    break
+            if len(findings) >= 5:
+                break
+        return findings
     
     def _extract_evidence_chain(self, text: str) -> List[str]:
         """提取证据链"""
@@ -286,12 +298,35 @@ class MultiRoundAnalysisSkill(LLMBasedSkill):
     
     def _extract_confidence(self, text: str) -> Dict[str, float]:
         """提取置信度"""
-        confidence = {"root_cause": 0.85, "fix_feasibility": 0.80}
-        if "置信度" in text:
-            import re
-            match = re.search(r'(\d+)%', text)
+        confidence = {"root_cause": None, "fix_feasibility": None}
+        
+        root_cause_patterns = [
+            r'根因分析置信度[：:]\s*\**(\d+)%\**',
+            r'根因.*?(\d{1,3})%',
+            r'confidence.*?(\d{1,3})%',
+        ]
+        for pattern in root_cause_patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
             if match:
-                confidence["root_cause"] = int(match.group(1)) / 100
+                confidence["root_cause"] = min(int(match.group(1)) / 100, 1.0)
+                break
+        
+        fix_patterns = [
+            r'修复方案可行性[：:]\s*\**(\d+)%\**',
+            r'修复.*?可行性.*?(\d{1,3})%',
+            r'fix.*?feasibility.*?(\d{1,3})%',
+        ]
+        for pattern in fix_patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                confidence["fix_feasibility"] = min(int(match.group(1)) / 100, 1.0)
+                break
+        
+        if confidence["root_cause"] is None:
+            confidence["root_cause"] = 0.5
+        if confidence["fix_feasibility"] is None:
+            confidence["fix_feasibility"] = 0.5
+        
         return confidence
     
     def _compile_results(self, results: List[Dict[str, Any]], 
@@ -305,7 +340,7 @@ class MultiRoundAnalysisSkill(LLMBasedSkill):
             "summary": self._generate_summary(results),
             "key_insights": self._compile_key_insights(results),
             "recommended_fix": self._compile_recommended_fix(results),
-            "confidence": results[-1].get("confidence", {"root_cause": 0.85, "fix_feasibility": 0.80})
+            "confidence": results[-1].get("confidence", {"root_cause": 0.5, "fix_feasibility": 0.5})
         }
         
         return compiled

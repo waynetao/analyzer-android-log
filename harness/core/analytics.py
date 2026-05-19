@@ -5,6 +5,7 @@ Analytics - 数据统计分析模块
 
 import os
 import json
+import threading
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field, asdict
@@ -521,11 +522,14 @@ class AnalyticsCollector:
 
 # 全局单例
 _analytics_collector: Optional[AnalyticsCollector] = None
+_analytics_lock = threading.Lock()
 
 
 def get_analytics_collector() -> AnalyticsCollector:
-    """获取全局数据收集器实例"""
+    """获取全局数据收集器实例（线程安全）"""
     global _analytics_collector
     if _analytics_collector is None:
-        _analytics_collector = AnalyticsCollector()
+        with _analytics_lock:
+            if _analytics_collector is None:
+                _analytics_collector = AnalyticsCollector()
     return _analytics_collector
