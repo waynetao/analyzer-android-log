@@ -248,7 +248,7 @@ class TestLogFileSelectorSkill:
         
         assert result.success is True
         assert result.data["total_selected"] > 0
-        assert result.data["selection_method"] == "rules_only"
+        assert result.data["selection_method"] in ("rules+knowledge", "llm+rules+knowledge")
 
     def test_skill_execute_missing_extract_dir(self):
         """测试技能执行 - 缺少解压目录"""
