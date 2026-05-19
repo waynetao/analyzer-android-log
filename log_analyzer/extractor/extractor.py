@@ -3,17 +3,34 @@ import zipfile
 import tarfile
 import shutil
 import logging
+from typing import Optional
 
-from harness.core.paths import OUTPUTS_TEMP_DIR_STR
+from harness.core.paths import OUTPUTS_TEMP_DIR_STR, WorkflowPaths
 
 logger = logging.getLogger(__name__)
 
 
 class LogExtractor:
-    def __init__(self, temp_dir: str = None):
-        self.temp_dir = temp_dir or OUTPUTS_TEMP_DIR_STR
+    def __init__(self, temp_dir: str = None, workflow_id: str = None):
+        """初始化日志提取器
+        
+        Args:
+            temp_dir: 临时目录（可选，优先使用）
+            workflow_id: 工作流 ID（可选，如果提供则使用 WorkflowPaths 管理）
+        """
+        if workflow_id:
+            # 使用工作流专属路径
+            self.workflow_paths = WorkflowPaths(workflow_id).ensure_dirs()
+            self.temp_dir = self.workflow_paths.temp_dir_str
+            self._use_workflow_paths = True
+        else:
+            # 使用全局临时目录（向后兼容）
+            self.temp_dir = temp_dir or OUTPUTS_TEMP_DIR_STR
+            self._use_workflow_paths = False
+        
         if not os.path.exists(self.temp_dir):
             os.makedirs(self.temp_dir)
+        logger.debug(f"LogExtractor 初始化，临时目录: {self.temp_dir}")
 
     @staticmethod
     def _is_safe_path(member_path: str, extract_dir: str) -> bool:
@@ -37,7 +54,11 @@ class LogExtractor:
     
     def _extract_directory(self, dir_path: str) -> str:
         """解压目录中的所有压缩包到临时目录"""
-        extract_dir = os.path.join(self.temp_dir, "extracted_" + os.path.basename(dir_path))
+        # 使用更安全的目录名，避免冲突
+        import hashlib
+        dir_hash = hashlib.md5(dir_path.encode()).hexdigest()[:8]
+        extract_dir = os.path.join(self.temp_dir, f"extracted_dir_{dir_hash}")
+        
         if os.path.exists(extract_dir):
             shutil.rmtree(extract_dir)
         os.makedirs(extract_dir)
@@ -84,9 +105,11 @@ class LogExtractor:
             tar_ref.extract(member, extract_dir)
 
     def _extract_zip(self, zip_path: str) -> str:
-        extract_dir = os.path.join(
-            self.temp_dir, os.path.splitext(os.path.basename(zip_path))[0]
-        )
+        # 使用更安全的目录名，避免冲突
+        import hashlib
+        file_hash = hashlib.md5(zip_path.encode()).hexdigest()[:8]
+        extract_dir = os.path.join(self.temp_dir, f"extracted_zip_{file_hash}")
+        
         if os.path.exists(extract_dir):
             shutil.rmtree(extract_dir)
         os.makedirs(extract_dir)
@@ -95,9 +118,11 @@ class LogExtractor:
         return extract_dir
 
     def _extract_tar(self, tar_path: str) -> str:
-        extract_dir = os.path.join(
-            self.temp_dir, os.path.splitext(os.path.basename(tar_path))[0]
-        )
+        # 使用更安全的目录名，避免冲突
+        import hashlib
+        file_hash = hashlib.md5(tar_path.encode()).hexdigest()[:8]
+        extract_dir = os.path.join(self.temp_dir, f"extracted_tar_{file_hash}")
+        
         if os.path.exists(extract_dir):
             shutil.rmtree(extract_dir)
         os.makedirs(extract_dir)
@@ -106,5 +131,11 @@ class LogExtractor:
         return extract_dir
 
     def cleanup(self):
-        if os.path.exists(self.temp_dir):
+        """清理临时文件
+        
+        如果使用 workflow 路径管理，则只清理该工作流的临时文件
+        """
+        if self._use_workflow_paths and hasattr(self, 'workflow_paths'):
+            self.workflow_paths.cleanup()
+        elif os.path.exists(self.temp_dir):
             shutil.rmtree(self.temp_dir)

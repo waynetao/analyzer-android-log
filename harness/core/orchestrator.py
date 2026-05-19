@@ -72,12 +72,19 @@ class Orchestrator:
         self.analytics.start_workflow(workflow_name)
         logger.info(f"工作流ID: {workflow_id}")
         
+        # 增强输入：添加 workflow_id 和工作流路径
+        enhanced_inputs = inputs.copy()
+        enhanced_inputs["workflow_id"] = workflow_id
+        if self.state_manager.workflow_paths:
+            enhanced_inputs["workflow_temp_dir"] = self.state_manager.workflow_paths.temp_dir_str
+            enhanced_inputs["workflow_reports_dir"] = self.state_manager.workflow_paths.reports_dir_str
+        
         try:
             # 2. PLAN - 规划阶段
-            self._plan_phase(inputs)
+            self._plan_phase(enhanced_inputs)
             
             # 3. BUILD - 构建阶段
-            self._build_phase(inputs)
+            self._build_phase(enhanced_inputs)
             
             # 4. VERIFY - 验证阶段
             self._verify_phase()
@@ -105,6 +112,10 @@ class Orchestrator:
             self.state_manager.flush()  # 确保异常路径也持久化状态
             self.analytics.end_workflow(status="failed", error_message=str(e))
             raise
+        finally:
+            # 可选：工作流完成后清理临时文件（可通过配置控制）
+            # self.state_manager.cleanup_workflow()
+            pass
     
     def _plan_phase(self, inputs: Dict[str, Any]):
         """PLAN阶段"""

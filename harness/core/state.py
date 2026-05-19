@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional, List
 from enum import Enum
 from .logging import get_logger
-from .paths import OUTPUTS_STATE_DIR_STR
+from .paths import OUTPUTS_STATE_DIR_STR, WorkflowPaths
 
 logger = get_logger(__name__)
 
@@ -32,6 +32,7 @@ class StateManager:
         self.current_state: Dict[str, Any] = {}
         self.checkpoints: List[Dict[str, Any]] = []
         self._dirty: bool = False  # 脏标记：是否需要持久化
+        self._workflow_paths: Optional[WorkflowPaths] = None  # 工作流路径管理器
         self._ensure_dir()
         logger.info(f"StateManager 初始化完成，状态目录: {state_dir}")
     
@@ -40,9 +41,18 @@ class StateManager:
             os.makedirs(self.state_dir)
             logger.info(f"创建状态目录: {self.state_dir}")
     
+    @property
+    def workflow_paths(self) -> Optional[WorkflowPaths]:
+        """获取当前工作流的路径管理器"""
+        return self._workflow_paths
+    
     def initialize_workflow(self, workflow_name: str) -> str:
         """初始化工作流状态"""
         workflow_id = f"{workflow_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+        
+        # 初始化工作流专属路径
+        self._workflow_paths = WorkflowPaths(workflow_id).ensure_dirs()
+        logger.info(f"工作流专属目录初始化: {self._workflow_paths.workflow_root}")
         
         self.current_state = {
             "workflow_id": workflow_id,
@@ -59,6 +69,31 @@ class StateManager:
         self.flush()
         logger.info(f"工作流初始化: {workflow_name}, ID: {workflow_id}")
         return workflow_id
+    
+    def load_state(self, workflow_id: str) -> Dict[str, Any]:
+        """从文件加载指定工作流的状态"""
+        state_file = os.path.join(self.state_dir, f"{workflow_id}.json")
+        if not os.path.exists(state_file):
+            logger.error(f"工作流状态文件不存在: {workflow_id}")
+            raise FileNotFoundError(f"工作流 '{workflow_id}' 不存在")
+        try:
+            with open(state_file, 'r', encoding='utf-8') as f:
+                self.current_state = json.load(f)
+            
+            # 重新初始化工作流路径
+            self._workflow_paths = WorkflowPaths(workflow_id).ensure_dirs()
+            
+            logger.info(f"工作流状态已加载: {workflow_id}")
+            return copy.deepcopy(self.current_state)
+        except json.JSONDecodeError as e:
+            logger.error(f"工作流状态文件损坏: {workflow_id}, 错误: {e}")
+            raise ValueError(f"工作流 '{workflow_id}' 状态文件损坏")
+    
+    def cleanup_workflow(self):
+        """清理当前工作流的临时文件"""
+        if self._workflow_paths:
+            self._workflow_paths.cleanup()
+            logger.info(f"工作流临时文件已清理: {self._workflow_paths.workflow_id}")
     
     def transition_stage(self, next_stage: WorkflowStage, success: bool = True):
         """状态转换"""
