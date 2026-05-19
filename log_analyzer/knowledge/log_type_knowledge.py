@@ -1,14 +1,29 @@
 """
 LogTypeKnowledgeBase - 日志类型领域知识库
 
-将 LLM 对 MTK/Android 日志类型的领域知识结构化，
-用于指导文件筛选优先级、LLM 提示词增强、日志分析策略选择。
+设计理念：规则先行 + LLM 兜底
+1. 确定性规则匹配已知命名模式（高置信、零成本）
+2. 匹配失败或置信度低的文件，交给 LLM 识别（覆盖长尾）
+3. LLM 识别结果可缓存回知识库，实现自学习
 
-知识来源：LLM 对 MTKLogger 日志体系的深度理解
+这样既保证了主流场景的性能和准确，又覆盖了长尾需求。
 """
+import os
 import re
-from typing import Dict, List, Optional, Set
+import json
+import logging
+from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
+from enum import Enum
+
+logger = logging.getLogger(__name__)
+
+
+class Confidence(Enum):
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+    UNKNOWN = "unknown"
 
 
 @dataclass
@@ -23,6 +38,20 @@ class LogTypeInfo:
     def __post_init__(self):
         if self.compiled_pattern is None:
             self.compiled_pattern = re.compile(self.pattern, re.IGNORECASE)
+
+
+@dataclass
+class FileIdentification:
+    filename: str
+    file_path: str = ""
+    log_type: Optional[LogTypeInfo] = None
+    confidence: Confidence = Confidence.UNKNOWN
+    category: str = ""
+    description: str = ""
+    applicable_bug_types: List[str] = field(default_factory=list)
+    priority: int = 1
+    identified_by: str = ""
+    llm_identified: bool = False
 
 
 LOG_TYPE_REGISTRY: List[LogTypeInfo] = [
@@ -210,6 +239,16 @@ LOG_TYPE_REGISTRY: List[LogTypeInfo] = [
     ),
 ]
 
+LOG_EXTENSION_HEURISTICS = [
+    (r"\.log$", "log_file", "日志文件（.log 扩展名）", Confidence.MEDIUM),
+    (r"\.txt$", "text_file", "文本文件（.txt 扩展名）", Confidence.LOW),
+    (r"^dmesg$", "kernel", "内核日志（dmesg）", Confidence.HIGH),
+    (r"^kmsg", "kernel", "内核日志（kmsg）", Confidence.HIGH),
+    (r"^last_kmsg", "kernel", "上次启动内核日志", Confidence.HIGH),
+    (r"^console", "boot", "控制台日志", Confidence.MEDIUM),
+    (r"^proc", "metadata", "进程信息", Confidence.LOW),
+]
+
 BUG_TYPE_KEYWORDS: Dict[str, List[str]] = {
     "crash": ["crash", "crashed", "崩溃", "闪退", "fatal", "exception", "died", "tombstone"],
     "anr": ["anr", "not responding", "无响应", "卡死", "frozen", "hang", "卡顿"],
@@ -233,108 +272,194 @@ BUG_TYPE_KEYWORDS: Dict[str, List[str]] = {
 
 
 class LogTypeKnowledgeBase:
-    """日志类型领域知识库
-    
-    核心能力:
-    1. 根据文件名识别日志类型和用途
-    2. 根据 Bug 类型推荐相关日志文件
-    3. 生成 Bug 类型感知的文件优先级
-    4. 生成 LLM 提示词中的日志类型参考信息
+    """日志类型领域知识库 — 规则先行 + LLM 兜底
+
+    两阶段识别流程:
+    ┌──────────────────────────────────────────────────────┐
+    │ 阶段1: 确定性规则匹配（零成本、高置信）                │
+    │  - 已知命名模式（main_log, crash_log, adsp_log...）  │
+    │  - 扩展名启发式（.log, .txt, dmesg, kmsg...）        │
+    │  → 高置信: 直接使用，不走 LLM                        │
+    │  → 中置信: 标记，可选走 LLM 验证                      │
+    │  → 低/未知: 进入阶段2                                 │
+    └──────────────────────────────────────────────────────┘
+                        ↓ 未知/低置信文件
+    ┌──────────────────────────────────────────────────────┐
+    │ 阶段2: LLM 识别（覆盖长尾）                           │
+    │  - 将未知文件清单发给 LLM                              │
+    │  - LLM 返回文件类型、用途、适用 Bug 类型               │
+    │  - 结果缓存到 _llm_cache，下次免调 LLM                │
+    └──────────────────────────────────────────────────────┘
     """
-    
+
     def __init__(self):
         self._registry = LOG_TYPE_REGISTRY
         self._bug_keywords = BUG_TYPE_KEYWORDS
-    
-    def identify_log_type(self, filename: str) -> Optional[LogTypeInfo]:
-        """根据文件名识别日志类型"""
-        for info in self._registry:
-            if info.compiled_pattern.search(filename):
-                return info
-        return None
-    
+        self._extension_heuristics = [
+            (re.compile(p, re.IGNORECASE), cat, desc, conf)
+            for p, cat, desc, conf in LOG_EXTENSION_HEURISTICS
+        ]
+        self._llm_cache: Dict[str, FileIdentification] = {}
+
+    def identify_file(self, filename: str, file_path: str = "") -> FileIdentification:
+        """识别单个文件的日志类型（规则优先）
+
+        Returns:
+            FileIdentification 包含置信度、类型、描述等
+        """
+        info = self._match_known_pattern(filename)
+        if info:
+            return FileIdentification(
+                filename=filename,
+                file_path=file_path,
+                log_type=info,
+                confidence=Confidence.HIGH,
+                category=info.category,
+                description=info.description,
+                applicable_bug_types=info.applicable_bug_types,
+                priority=info.priority_base,
+                identified_by="rule:known_pattern",
+            )
+
+        ext_result = self._match_extension_heuristic(filename)
+        if ext_result:
+            cat, desc, conf = ext_result
+            return FileIdentification(
+                filename=filename,
+                file_path=file_path,
+                confidence=conf,
+                category=cat,
+                description=desc,
+                priority=3 if conf == Confidence.MEDIUM else 2,
+                identified_by="rule:extension_heuristic",
+            )
+
+        if filename in self._llm_cache:
+            cached = self._llm_cache[filename]
+            cached.file_path = file_path
+            cached.identified_by = "llm:cached"
+            return cached
+
+        return FileIdentification(
+            filename=filename,
+            file_path=file_path,
+            confidence=Confidence.UNKNOWN,
+            identified_by="unknown",
+        )
+
+    def identify_files_batch(
+        self,
+        file_paths: List[str],
+        extract_dir: str = ""
+    ) -> Tuple[List[FileIdentification], List[FileIdentification]]:
+        """批量识别文件，返回 (已识别, 需 LLM 识别)
+
+        Args:
+            file_paths: 文件路径列表
+            extract_dir: 解压目录（用于生成相对路径）
+
+        Returns:
+            (identified, needs_llm) - 已识别的高/中置信文件 + 需 LLM 识别的未知文件
+        """
+        identified = []
+        needs_llm = []
+
+        for fp in file_paths:
+            filename = os.path.basename(fp)
+            result = self.identify_file(filename, fp)
+
+            if result.confidence in (Confidence.HIGH, Confidence.MEDIUM):
+                identified.append(result)
+            else:
+                needs_llm.append(result)
+
+        return identified, needs_llm
+
+    def apply_llm_results(self, llm_results: List[Dict]):
+        """将 LLM 识别结果合并到知识库（缓存 + 自学习）
+
+        Args:
+            llm_results: LLM 返回的识别结果列表，每项包含:
+                - filename: 文件名
+                - category: 分类
+                - description: 描述
+                - applicable_bug_types: 适用的 Bug 类型列表
+                - priority: 优先级
+        """
+        for item in llm_results:
+            filename = item.get("filename", "")
+            if not filename:
+                continue
+
+            ident = FileIdentification(
+                filename=filename,
+                category=item.get("category", "unknown"),
+                description=item.get("description", ""),
+                applicable_bug_types=item.get("applicable_bug_types", []),
+                priority=item.get("priority", 3),
+                confidence=Confidence.MEDIUM,
+                identified_by="llm",
+                llm_identified=True,
+            )
+
+            self._llm_cache[filename] = ident
+            logger.debug(f"  LLM 识别缓存: {filename} → [{ident.category}] {ident.description}")
+
     def get_bug_types_from_description(self, bug_description: str) -> List[str]:
         """从 Bug 描述中推断 Bug 类型"""
         bug_lower = bug_description.lower()
         matched_types = []
-        
+
         for bug_type, keywords in self._bug_keywords.items():
             for keyword in keywords:
                 if keyword in bug_lower:
                     matched_types.append(bug_type)
                     break
-        
+
         if not matched_types:
             matched_types = ["crash", "anr", "functional"]
-        
+
         return matched_types
-    
+
     def get_priority_for_file(self, filename: str, bug_types: List[str] = None) -> int:
-        """计算文件优先级分数（Bug 类型感知）
-        
-        Args:
-            filename: 文件名
-            bug_types: Bug 类型列表，为空时使用基础优先级
-        
-        Returns:
-            优先级分数，越高越优先
-        """
-        info = self.identify_log_type(filename)
-        if info is None:
-            return 1
-        
-        score = info.priority_base
-        
-        if bug_types:
+        """计算文件优先级分数（Bug 类型感知）"""
+        ident = self.identify_file(filename)
+        score = ident.priority
+
+        if bug_types and ident.applicable_bug_types:
             for bug_type in bug_types:
-                if bug_type in info.applicable_bug_types:
+                if bug_type in ident.applicable_bug_types:
                     score += 5
-        
+
         return score
-    
+
     def get_recommended_files(
         self,
         available_files: List[str],
         bug_types: List[str],
         max_files: int = 10
     ) -> List[str]:
-        """根据 Bug 类型推荐最相关的日志文件
-        
-        Args:
-            available_files: 可用文件路径列表
-            bug_types: Bug 类型列表
-            max_files: 最大推荐数量
-        
-        Returns:
-            按优先级排序的推荐文件列表
-        """
+        """根据 Bug 类型推荐最相关的日志文件"""
         scored = []
         for file_path in available_files:
             filename = os.path.basename(file_path) if '/' in file_path else file_path
             score = self.get_priority_for_file(filename, bug_types)
             scored.append((file_path, score))
-        
+
         scored.sort(key=lambda x: x[1], reverse=True)
         return [f for f, s in scored[:max_files]]
-    
+
     def generate_llm_context(self, bug_types: List[str] = None) -> str:
-        """生成 LLM 提示词中的日志类型参考信息
-        
-        Args:
-            bug_types: Bug 类型列表，为空时包含所有类型
-        
-        Returns:
-            格式化的日志类型参考文本
-        """
+        """生成 LLM 提示词中的日志类型参考信息"""
         lines = ["【MTK/Android 日志类型参考】", ""]
-        
+
         categories = {}
         for info in self._registry:
             cat = info.category
             if cat not in categories:
                 categories[cat] = []
             categories[cat].append(info)
-        
+
         category_names = {
             "android_core": "Android 系统核心日志",
             "boot": "启动与早期阶段日志",
@@ -342,30 +467,159 @@ class LogTypeKnowledgeBase:
             "connectivity": "连接子系统日志",
             "security": "安全与可信日志",
             "metadata": "元数据与配置",
+            "unknown": "未知类型",
         }
-        
+
         for cat, infos in categories.items():
             cat_name = category_names.get(cat, cat)
             lines.append(f"## {cat_name}")
-            
+
             for info in infos:
                 relevance = ""
                 if bug_types:
                     overlap = set(bug_types) & set(info.applicable_bug_types)
                     if overlap:
                         relevance = f" ⭐与当前Bug相关({', '.join(overlap)})"
-                
+
                 lines.append(f"- {info.pattern}: {info.description}{relevance}")
             lines.append("")
-        
+
         return "\n".join(lines)
-    
+
+    def generate_llm_identification_prompt(
+        self,
+        unknown_files: List[FileIdentification],
+        bug_types: List[str],
+        knowledge_context: str = ""
+    ) -> Tuple[str, str]:
+        """为未知文件生成 LLM 识别提示词
+
+        Args:
+            unknown_files: 需要识别的文件列表
+            bug_types: Bug 类型
+            knowledge_context: 已有的日志类型参考上下文
+
+        Returns:
+            (system_prompt, user_prompt)
+        """
+        file_list = []
+        for f in unknown_files:
+            size_str = ""
+            if f.file_path and os.path.isfile(f.file_path):
+                try:
+                    size = os.path.getsize(f.file_path)
+                    if size > 1024 * 1024:
+                        size_str = f" ({size / (1024*1024):.1f}MB)"
+                    elif size > 1024:
+                        size_str = f" ({size / 1024:.1f}KB)"
+                except OSError:
+                    pass
+            file_list.append(f"  - {f.filename}{size_str}")
+
+        file_list_str = "\n".join(file_list)
+
+        system_prompt = f"""你是一个 Android/MTK 平台的日志分析专家。
+你的任务是识别未知日志文件的类型和用途。
+
+{knowledge_context}
+
+请对每个文件返回 JSON 格式的识别结果：
+{{
+  "results": [
+    {{
+      "filename": "文件名",
+      "category": "分类（android_core/boot/coprocessor/connectivity/security/metadata/unknown）",
+      "description": "该日志的用途描述",
+      "applicable_bug_types": ["适用的Bug类型列表"],
+      "priority": 1-10的优先级,
+      "is_relevant": true/false（是否与当前Bug相关）
+    }}
+  ]
+}}"""
+
+        user_prompt = f"""Bug 描述涉及类型: {', '.join(bug_types)}
+
+以下文件无法通过已知规则识别，请判断它们的类型和用途：
+
+{file_list_str}
+
+请识别每个文件的日志类型，判断是否与当前 Bug 相关。"""
+
+        return system_prompt, user_prompt
+
+    def parse_llm_identification_response(self, response: str) -> List[Dict]:
+        """解析 LLM 识别结果"""
+        try:
+            json_str = response
+            if "```json" in response:
+                json_str = response.split("```json")[1].split("```")[0]
+            elif "```" in response:
+                json_str = response.split("```")[1].split("```")[0]
+
+            data = json.loads(json_str.strip())
+            results = data.get("results", [])
+
+            for item in results:
+                if "applicable_bug_types" not in item:
+                    item["applicable_bug_types"] = []
+                if "priority" not in item:
+                    item["priority"] = 3
+                if "is_relevant" not in item:
+                    item["is_relevant"] = True
+
+            return results
+
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.warning(f"解析 LLM 识别结果失败: {e}")
+            return []
+
     def get_log_type_description(self, filename: str) -> str:
         """获取文件对应的日志类型描述"""
-        info = self.identify_log_type(filename)
-        if info:
-            return f"[{info.category}] {info.description}"
+        ident = self.identify_file(filename)
+        if ident.confidence != Confidence.UNKNOWN:
+            return f"[{ident.category}] {ident.description}"
         return "[未知类型]"
 
+    def get_identification_summary(self, files: List[str], bug_types: List[str] = None) -> Dict:
+        """获取文件识别摘要统计"""
+        high = medium = low = unknown = 0
+        categories = {}
 
-import os
+        for fp in files:
+            filename = os.path.basename(fp)
+            ident = self.identify_file(filename, fp)
+
+            if ident.confidence == Confidence.HIGH:
+                high += 1
+            elif ident.confidence == Confidence.MEDIUM:
+                medium += 1
+            elif ident.confidence == Confidence.LOW:
+                low += 1
+            else:
+                unknown += 1
+
+            cat = ident.category or "unknown"
+            categories[cat] = categories.get(cat, 0) + 1
+
+        return {
+            "total": len(files),
+            "high_confidence": high,
+            "medium_confidence": medium,
+            "low_confidence": low,
+            "unknown_needs_llm": unknown,
+            "categories": categories,
+        }
+
+    def _match_known_pattern(self, filename: str) -> Optional[LogTypeInfo]:
+        """匹配已知命名模式"""
+        for info in self._registry:
+            if info.compiled_pattern.search(filename):
+                return info
+        return None
+
+    def _match_extension_heuristic(self, filename: str) -> Optional[Tuple[str, str, Confidence]]:
+        """匹配扩展名启发式规则"""
+        for pattern, cat, desc, conf in self._extension_heuristics:
+            if pattern.search(filename):
+                return cat, desc, conf
+        return None

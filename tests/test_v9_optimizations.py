@@ -300,9 +300,9 @@ class TestLogFileSelectorSkill:
         
         rule_matched = [crash_file, main_file]
         must_include = [crash_file]
-        llm_selected = [main_file]  # 漏掉了 crash
+        llm_selected = [main_file]
         
-        result = skill._validate_llm_selection(
+        result = skill._validate_selection(
             llm_selected, rule_matched, must_include, mock_extract_dir
         )
         
@@ -315,9 +315,9 @@ class TestLogFileSelectorSkill:
         
         rule_matched = [f"/fake/file{i}.log" for i in range(10)]
         must_include = []
-        llm_selected = ["/fake/file0.log"]  # 只选了 10%
+        llm_selected = ["/fake/file0.log"]
         
-        result = skill._validate_llm_selection(
+        result = skill._validate_selection(
             llm_selected, rule_matched, must_include, mock_extract_dir
         )
         
@@ -325,57 +325,55 @@ class TestLogFileSelectorSkill:
 
     def test_parse_llm_response_valid_json(self, mock_extract_dir):
         """测试解析 LLM 有效 JSON 响应"""
-        from harness.skills.log_file_selector import LogFileSelectorSkill
-        skill = LogFileSelectorSkill()
-        
-        crash_file = os.path.join(mock_extract_dir, "crash_log.log")
-        with open(crash_file, 'w') as f:
-            f.write("crash content " * 50)
+        from log_analyzer.knowledge.log_type_knowledge import LogTypeKnowledgeBase
+        kb = LogTypeKnowledgeBase()
         
         response = json.dumps({
-            "selected_files": ["crash_log.log"],
-            "reasoning": "崩溃日志与 Bug 直接相关"
+            "results": [{
+                "filename": "crash_log.log",
+                "category": "android_core",
+                "description": "崩溃日志",
+                "applicable_bug_types": ["crash"],
+                "priority": 10,
+                "is_relevant": True
+            }]
         })
         
-        result = skill._parse_llm_response(response, mock_extract_dir, [])
-        assert len(result) > 0
+        results = kb.parse_llm_identification_response(response)
+        assert len(results) == 1
+        assert results[0]["filename"] == "crash_log.log"
 
     def test_parse_llm_response_with_code_block(self, mock_extract_dir):
         """测试解析 LLM 带 ```json 代码块的响应"""
-        from harness.skills.log_file_selector import LogFileSelectorSkill
-        skill = LogFileSelectorSkill()
+        from log_analyzer.knowledge.log_type_knowledge import LogTypeKnowledgeBase
+        kb = LogTypeKnowledgeBase()
         
-        crash_file = os.path.join(mock_extract_dir, "crash_log.log")
-        with open(crash_file, 'w') as f:
-            f.write("crash content " * 50)
+        response = '```json\n{"results": [{"filename": "crash_log.log", "category": "android_core", "description": "test", "applicable_bug_types": [], "priority": 5, "is_relevant": true}]}\n```'
         
-        response = '```json\n{"selected_files": ["crash_log.log"], "reasoning": "test"}\n```'
-        
-        result = skill._parse_llm_response(response, mock_extract_dir, [])
-        assert len(result) > 0
+        results = kb.parse_llm_identification_response(response)
+        assert len(results) == 1
 
     def test_parse_llm_response_invalid_json_fallback(self):
         """测试解析 LLM 无效 JSON 时回退"""
-        from harness.skills.log_file_selector import LogFileSelectorSkill
-        skill = LogFileSelectorSkill()
+        from log_analyzer.knowledge.log_type_knowledge import LogTypeKnowledgeBase
+        kb = LogTypeKnowledgeBase()
         
-        fallback = ["/fallback/file.log"]
-        result = skill._parse_llm_response("not json at all", "/dir", fallback)
-        assert result == fallback
+        results = kb.parse_llm_identification_response("not json at all")
+        assert results == []
 
     def test_parse_llm_response_nonexistent_files_fallback(self):
-        """测试 LLM 选择的文件不存在时回退"""
-        from harness.skills.log_file_selector import LogFileSelectorSkill
-        skill = LogFileSelectorSkill()
+        """测试 LLM 响应中缺失字段时使用默认值"""
+        from log_analyzer.knowledge.log_type_knowledge import LogTypeKnowledgeBase
+        kb = LogTypeKnowledgeBase()
         
         response = json.dumps({
-            "selected_files": ["nonexistent_file.log"],
-            "reasoning": "test"
+            "results": [{"filename": "some_file"}]
         })
         
-        fallback = ["/fallback/file.log"]
-        result = skill._parse_llm_response(response, "/nonexistent/dir", fallback)
-        assert result == fallback
+        results = kb.parse_llm_identification_response(response)
+        assert len(results) == 1
+        assert results[0]["applicable_bug_types"] == []
+        assert results[0]["priority"] == 3
 
 
 # ============================================================
