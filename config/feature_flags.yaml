@@ -16,7 +16,7 @@ flags:
   analysis_mode:
     created_at: '2026-05-17T03:34:08.121291'
     default_value: standard
-    description: 分析模式：fast/standard/deep
+    description: 分析模式：fast/standard/deep/multi_round
     enabled: true
     environments:
     - dev
@@ -33,6 +33,9 @@ flags:
       fast:
         description: 快速分析
         value: fast
+      multi_round:
+        description: 多轮深度分析（3轮对话）
+        value: multi_round
       standard:
         description: 标准分析
         value: standard

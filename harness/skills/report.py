@@ -118,6 +118,55 @@ class ReportGenerationSkill(BaseSkill):
         
         return log_data
     
+    def _generate_multi_round_section(self, multi_round_data: Dict[str, Any]) -> str:
+        """生成多轮分析章节"""
+        rounds = multi_round_data.get("rounds", [])
+        confidence = multi_round_data.get("confidence", {})
+        
+        content = """
+## 🤖 多轮深度分析
+
+"""
+        
+        # 添加置信度信息
+        if confidence:
+            root_cause_conf = confidence.get("root_cause", 0) * 100
+            fix_conf = confidence.get("fix_feasibility", 0) * 100
+            content += f"""
+### 分析置信度
+
+- **根因分析置信度**: {root_cause_conf:.0f}%
+- **修复方案可行性**: {fix_conf:.0f}%
+
+"""
+        
+        # 添加每轮的分析结果
+        for round_data in rounds:
+            round_num = round_data.get("round", 0)
+            round_name = round_data.get("name", f"第{round_num}轮")
+            round_analysis = round_data.get("analysis", "")
+            
+            content += f"""
+### 第{round_num}轮：{round_name}
+
+{round_analysis}
+
+---
+"""
+        
+        # 添加推荐修复方案
+        recommended_fix = multi_round_data.get("recommended_fix", "")
+        if recommended_fix and recommended_fix != "请参考详细分析":
+            content += f"""
+
+### 💡 推荐修复方案
+
+{recommended_fix}
+
+"""
+        
+        return content
+    
     def _generate_aloggrep_section(self, aloggrep_data: Dict[str, Any]) -> str:
         """生成 aloggrep 分析章节的 Markdown 部分"""
         if not aloggrep_data:
@@ -215,7 +264,14 @@ class ReportGenerationSkill(BaseSkill):
         
         llm_section = ""
         if llm_analysis and "analysis" in llm_analysis:
-            llm_section = f"""
+            # 检查是否是多轮分析结果
+            if "multi_round_analysis" in llm_analysis:
+                # 多轮分析模式
+                multi_round_data = llm_analysis.get("multi_round_analysis", {})
+                llm_section = self._generate_multi_round_section(multi_round_data)
+            else:
+                # 标准分析模式
+                llm_section = f"""
 ## 🤖 LLM 高级分析
 
 {llm_analysis['analysis']}
