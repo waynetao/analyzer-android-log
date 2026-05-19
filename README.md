@@ -4,7 +4,7 @@
 
 基于 Harness Engineering 架构的 Android 日志分析 AI Agent，支持高质量的自动化分析、证据匹配、LLM 集成、记忆系统等功能。
 
-**当前版本**: v8.0 (Pipeline & CLI)
+**当前版本**: v9.0 (多轮分析 & Workflow ID 管理)
 **最后更新**: 2026-05-18
 
 ---
@@ -117,6 +117,13 @@ python scripts/ffctl.py set llm_analysis_enabled --percentage 50
 - ✅ 独立技能调用
 - ✅ 断点续跑（resume）
 - ✅ 工作流状态管理（load/list/status）
+
+### 多轮分析 & Workflow ID 管理 (v9.0)
+- ✅ 多轮 LLM 深度分析（全景扫描→深度分析→验证优化）
+- ✅ Workflow ID 统一产物管理（输出文件、日志、报告）
+- ✅ "Additional Findings" 额外发现标注（避免误导 Bug Owner）
+- ✅ Token 限制翻倍（默认从 2000 → 4000）
+- ✅ 工作流元数据索引系统
 
 ---
 
@@ -271,7 +278,7 @@ evidence_matching_enabled:
 analysis_mode:
   描述: 分析模式
   类型: multivariate
-  选项: fast / standard / deep
+  选项: fast / standard / deep / multi_round
   默认: standard
 
 memory_system_enabled:
@@ -286,6 +293,7 @@ memory_system_enabled:
 
 | 版本 | 日期 | 主要功能 |
 |------|------|---------|
+| 9.0.0 | 2026-05-18 | 多轮 LLM 分析 + Workflow ID 管理 + 额外发现标注 |
 | 8.0.0 | 2026-05-18 | Pipeline 分阶段执行 + 统一 CLI |
 | 7.0.0 | 2026-05-17 | 记忆系统集成 |
 | 6.0.0 | 2026-05-17 | Feature Flag 管控 |

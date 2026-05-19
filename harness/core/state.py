@@ -165,8 +165,7 @@ class WorkflowIndex:
 class StateManager:
     def __init__(self, state_dir: str = None):
         # 使用统一路径配置
-        if state_dir is None:
-            state_dir = OUTPUTS_STATE_DIR_STR
+        if state_dir is None: state_dir = OUTPUTS_STATE_DIR_STR
         self.state_dir = state_dir
         self.current_state: Dict[str, Any] = {}
         self.checkpoints: List[Dict[str, Any]] = []
@@ -366,18 +365,3 @@ class StateManager:
     def get_failed_validations(self) -> List[Dict[str, Any]]:
         """获取失败的验证"""
         return [r for r in self.current_state.get("validation_results", []) if not r["passed"]]
-    
-    def load_state(self, workflow_id: str) -> Dict[str, Any]:
-        """从文件加载指定工作流的状态"""
-        state_file = os.path.join(self.state_dir, f"{workflow_id}.json")
-        if not os.path.exists(state_file):
-            logger.error(f"工作流状态文件不存在: {workflow_id}")
-            raise FileNotFoundError(f"工作流 '{workflow_id}' 不存在")
-        try:
-            with open(state_file, 'r', encoding='utf-8') as f:
-                self.current_state = json.load(f)
-            logger.info(f"工作流状态已加载: {workflow_id}")
-            return copy.deepcopy(self.current_state)
-        except json.JSONDecodeError as e:
-            logger.error(f"工作流状态文件损坏: {workflow_id}, 错误: {e}")
-            raise ValueError(f"工作流 '{workflow_id}' 状态文件损坏")

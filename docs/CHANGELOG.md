@@ -7,6 +7,91 @@
 
 ---
 
+## [9.0.0] - 2026-05-19
+
+### 新增
+
+- ✨ **基于 Workflow ID 的产物统一管理**
+  - `WorkflowPaths` 类 - 为每个工作流创建独立的目录结构
+  - `temp/` - 临时文件目录，可清理
+  - `logs/` - 工作流专属日志
+  - `reports/` - 生成的报告
+  - `artifacts/` - 其他产物
+  - `StateManager` 集成 - 自动初始化和清理
+
+- ✨ **工作流元数据索引系统**
+  - `WorkflowMetadata` dataclass - 完整的工作流元数据
+  - `WorkflowIndex` 类 - 索引管理器
+  - 支持注册、更新、查询、搜索、删除工作流
+  - 支持按状态过滤 (running/completed/failed)
+  - 支持按关键词搜索 (bug_description/bug_summary)
+  - 自动清理 30 天前的旧工作流
+  - `workflow_index.json` - 持久化索引文件
+
+- ✨ **多轮深度分析功能**
+  - `MultiRoundAnalysisSkill` - 全新的多轮分析技能
+  - **第一轮 - 全景扫描** - 快速定位问题类型和范围
+  - **第二轮 - 深度挖掘** - 深入验证假设，构建证据链
+  - **第三轮 - 验证优化** - 验证结论，提供最佳修复方案
+  - 支持 `analysis_mode = "multi_round"` Feature Flag
+  - 报告生成集成 - 自动识别多轮分析结果并格式化展示
+  - 模拟模式支持 - 无真实 LLM 时也能运行
+
+- ✨ **额外发现功能**
+  - `LogEvidenceMatcherSkill` 增强 - 支持区分匹配结果和额外发现
+  - 报告生成增强 - 单独展示额外发现章节
+  - 橙色警告样式 - 明确区分与主问题的关系
+  - 描述文案 - 清楚说明这是与用户描述可能不相关的发现
+
+### 增强
+
+- 🚀 **Token 限制翻倍**
+  - LLM 默认 max_tokens 从 2000 → 4000
+  - 多轮分析各轮: 第一轮 8000, 第二轮 12000, 第三轮 8000
+  - 为 Claude、Gemini 等大模型预留足够空间进行详细分析
+
+- 🚀 **CLI 增强**
+  - `list` 命令支持 `--detailed` 显示详细工作流信息
+  - `search` 命令 - 按关键词搜索工作流
+  - `info` 命令 - 查看单个工作流的完整详情
+
+- 🚀 **StateManager 增强**
+  - `initialize_workflow()` 新增参数: bug_description, bug_summary, log_path, output_format, analysis_mode
+  - `workflow_index` 属性 - 访问工作流索引
+  - `workflow_paths` 属性 - 访问当前工作流的路径管理
+  - `cleanup_workflow()` - 清理当前工作流的临时文件
+  - `transition_stage()` 自动更新工作流索引状态
+
+- 🚀 **LLMAnalysisSkill 增强**
+  - 识别 `analysis_mode` 参数
+  - 自动调用 `MultiRoundAnalysisSkill` 进行多轮分析
+  - 保持向后兼容 - standard/deep 模式仍使用原有单轮分析
+
+### 修复
+
+- 🔧 **修复重复方法** - 移除 StateManager 中重复的 load_state() 定义
+
+### 测试
+
+- ✅ `test_workflow_enhancements.py` - 新功能完整测试套件
+  - `TestWorkflowMetadata` - 元数据创建测试
+  - `TestWorkflowIndex` - 索引管理器完整测试
+  - `TestWorkflowPaths` - 路径管理器测试
+  - `TestStateManagerEnhanced` - 增强的状态管理测试
+  - `TestMultiRoundAnalysis` - 多轮分析测试
+  - `TestAdditionalFindings` - 额外发现功能测试
+  - `TestReportWithAdditionalFindings` - 报告集成测试
+- ✅ 所有现有测试通过 (test_state.py, test_health_check.py)
+- ✅ 完整的模拟模式支持 - 不需要真实 LLM 即可测试
+
+### 文档
+
+- 📚 更新 `CHANGELOG.md` - 完整的变更记录
+- 📚 更新 `README.md` - 新功能介绍
+- 📚 `tests/test_workflow_enhancements.py` 包含完整的使用示例
+
+---
+
 ## [8.0.0] - 2026-05-18
 
 ### 新增
@@ -242,6 +327,7 @@
 
 | 版本 | 日期 | 主要变更 |
 |------|------|---------|
+| 9.0.0 | 2026-05-19 | 多轮分析 + 工作流索引 + 产物管理 |
 | 8.0.0 | 2026-05-18 | 统一 CLI 入口 + 分阶段执行 + 断点恢复 |
 | 7.0.0 | 2026-05-17 | 记忆系统（Simple/OpenViking）双模集成 |
 | 6.0.0 | 2026-05-17 | Feature Flag 管控系统 |
