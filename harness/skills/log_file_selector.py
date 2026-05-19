@@ -160,7 +160,7 @@ class LogFileSelectorSkill(LLMBasedSkill):
         rule_matched: List[str]
     ) -> List[str]:
         """使用 LLM 从规则匹配的文件中进一步筛选"""
-        manifest = selector.generate_file_manifest(extract_dir)
+        manifest = selector.generate_file_manifest(extract_dir, matched_files=rule_matched)
         
         if len(manifest) > 15000:
             manifest = manifest[:15000] + "\n... (文件清单过长，已截断)"

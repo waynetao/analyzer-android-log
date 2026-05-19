@@ -153,8 +153,13 @@ class LogFileSelector:
         
         return sorted(log_files, key=priority_score, reverse=True)
     
-    def generate_file_manifest(self, extract_dir: str) -> str:
+    def generate_file_manifest(self, extract_dir: str, matched_files: List[str] = None) -> str:
         """生成文件清单，供 LLM 判断哪些文件需要分析
+        
+        Args:
+            extract_dir: 解压目录
+            matched_files: 规则匹配后的文件列表。如果提供，只包含这些文件；
+                          如果不提供，包含所有文件（可能很大）
         
         Returns:
             格式化的文件清单字符串，包含文件路径、大小、类型
@@ -165,9 +170,10 @@ class LogFileSelector:
         lines.append("")
         
         total_files = 0
-        for root, dirs, files in os.walk(extract_dir):
-            for file in files:
-                file_path = os.path.join(root, file)
+        files_to_list = matched_files if matched_files is not None else None
+        
+        if files_to_list is not None:
+            for file_path in files_to_list:
                 rel_path = os.path.relpath(file_path, extract_dir)
                 
                 try:
@@ -181,12 +187,35 @@ class LogFileSelector:
                 except OSError:
                     size_str = "N/A"
                 
-                ext = Path(file).suffix.lower()
-                is_log = self._is_log_file(file)
+                filename = os.path.basename(file_path)
+                is_log = self._is_log_file(filename)
                 tag = "[LOG]" if is_log else "[OTHER]"
                 
                 lines.append(f"  {tag} {size_str:>10s}  {rel_path}")
                 total_files += 1
+        else:
+            for root, dirs, files in os.walk(extract_dir):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    rel_path = os.path.relpath(file_path, extract_dir)
+                    
+                    try:
+                        file_size = os.path.getsize(file_path)
+                        if file_size > 1024 * 1024:
+                            size_str = f"{file_size / (1024*1024):.1f}MB"
+                        elif file_size > 1024:
+                            size_str = f"{file_size / 1024:.1f}KB"
+                        else:
+                            size_str = f"{file_size}B"
+                    except OSError:
+                        size_str = "N/A"
+                    
+                    ext = Path(file).suffix.lower()
+                    is_log = self._is_log_file(file)
+                    tag = "[LOG]" if is_log else "[OTHER]"
+                    
+                    lines.append(f"  {tag} {size_str:>10s}  {rel_path}")
+                    total_files += 1
         
         lines.insert(2, f"文件总数: {total_files}")
         lines.insert(3, "")

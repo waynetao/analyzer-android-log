@@ -13,14 +13,6 @@ from log_analyzer.analyzer.log_analyzer import LogAnalyzer, AnalysisResult
 
 logger = logging.getLogger(__name__)
 
-@dataclass
-class CriticalLogEntry:
-    timestamp: str
-    level: str
-    tag: str
-    message: str
-    pid: int = None
-    tid: int = None
 
 class AdvancedLogAnalysisSkill(BaseSkill):
     """高级日志分析技能 - 提取高质量日志片段"""
@@ -38,7 +30,6 @@ class AdvancedLogAnalysisSkill(BaseSkill):
         bug_desc = inputs.get("bug_description", {})
         
         try:
-            # 优先复用 log_extraction 的解压结果，避免重复解压
             prev_output = inputs.get("log_extraction", {})
             if isinstance(prev_output, dict):
                 extract_dir = prev_output.get("data", {}).get("extraction_dir")
@@ -56,22 +47,17 @@ class AdvancedLogAnalysisSkill(BaseSkill):
             log_entries = parser.parse_all()
             logger.info(f"  解析日志条数: {len(log_entries)}")
             
-            # 清洗日志
             cleaner = LogCleaner(log_entries)
             cleaned_logs = cleaner.clean_all()
             logger.info(f"  清洗后日志条数: {len(cleaned_logs)} (过滤 {len(log_entries) - len(cleaned_logs)} 条)")
             
-            # 分析日志
             analyzer = LogAnalyzer(cleaned_logs)
             analysis_result = analyzer.analyze()
             
-            # 提取关键日志片段
-            critical_logs = self._extract_critical_logs(analysis_result)
+            critical_logs = self._extract_critical_logs(analysis_result, cleaned_logs)
             
-            # 提取设备状态
             device_state = self._extract_device_state(log_entries)
             
-            # 提取时间线
             timeline = self._build_timeline(log_entries, bug_desc)
             
             result = {
@@ -97,53 +83,73 @@ class AdvancedLogAnalysisSkill(BaseSkill):
                 f"高级分析失败: {str(e)}"
             )
     
-    def _extract_critical_logs(self, analysis_result) -> List[Dict]:
-        """提取关键日志片段"""
+    def _extract_critical_logs(self, analysis_result, all_entries: List = None) -> List[Dict]:
+        """提取关键日志片段，合并连续相关行为上下文块"""
         critical_logs = []
         
-        # 提取崩溃日志（取前3个，每个最多5行上下文）
         for crash in getattr(analysis_result, 'crashes', [])[:3]:
-            critical_logs.append({
-                "type": "crash",
-                "timestamp": crash.timestamp,
-                "level": crash.level,
-                "tag": crash.tag,
-                "message": crash.message,
-                "pid": crash.pid
-            })
+            context = self._build_context_block(crash, all_entries, "crash")
+            critical_logs.append(context)
         
-        # 提取ANR日志（取前2个）
         for anr in getattr(analysis_result, 'anrs', [])[:2]:
-            critical_logs.append({
-                "type": "anr",
-                "timestamp": anr.timestamp,
-                "level": anr.level,
-                "tag": anr.tag,
-                "message": anr.message,
-                "pid": anr.pid
-            })
+            context = self._build_context_block(anr, all_entries, "anr")
+            critical_logs.append(context)
         
-        # 提取低内存日志（取前3个）
         for low_mem in getattr(analysis_result, 'low_memory', [])[:3]:
-            critical_logs.append({
-                "type": "low_memory",
-                "timestamp": low_mem.timestamp,
-                "level": low_mem.level,
-                "tag": low_mem.tag,
-                "message": low_mem.message
-            })
+            context = self._build_context_block(low_mem, all_entries, "low_memory")
+            critical_logs.append(context)
         
-        # 提取异常日志（取前5个）
         for exc in getattr(analysis_result, 'exceptions', [])[:5]:
-            critical_logs.append({
-                "type": "exception",
-                "timestamp": exc.timestamp,
-                "level": exc.level,
-                "tag": exc.tag,
-                "message": exc.message
-            })
+            context = self._build_context_block(exc, all_entries, "exception")
+            critical_logs.append(context)
         
         return critical_logs
+    
+    def _build_context_block(self, entry, all_entries: List, log_type: str) -> Dict:
+        """将单条日志与其上下文合并为一个上下文块"""
+        context_lines = [entry.message]
+        
+        if all_entries:
+            idx = None
+            for i, e in enumerate(all_entries):
+                if (e.message == entry.message and
+                    e.timestamp == entry.timestamp and
+                    e.tag == entry.tag):
+                    idx = i
+                    break
+            
+            if idx is not None:
+                before = []
+                for i in range(max(0, idx - 2), idx):
+                    e = all_entries[i]
+                    if e.message and e.message != entry.message:
+                        before.append(e.message)
+                
+                after = []
+                for i in range(idx + 1, min(len(all_entries), idx + 5)):
+                    e = all_entries[i]
+                    if e.message:
+                        after.append(e.message)
+                
+                all_parts = before + [entry.message] + after
+                if len(all_parts) > 1:
+                    context_lines = all_parts
+        
+        result = {
+            "type": log_type,
+            "message": "\n".join(context_lines),
+        }
+        
+        if entry.timestamp:
+            result["timestamp"] = entry.timestamp
+        if entry.level:
+            result["level"] = entry.level
+        if entry.tag:
+            result["tag"] = entry.tag
+        if entry.pid:
+            result["pid"] = entry.pid
+        
+        return result
     
     def _extract_device_state(self, log_entries) -> Dict:
         """提取设备状态信息"""
@@ -157,14 +163,12 @@ class AdvancedLogAnalysisSkill(BaseSkill):
         for entry in log_entries:
             msg = entry.message.lower()
             
-            # 电池信息
             if "battery" in msg and ("level" in msg or "%" in msg):
                 state["battery_levels"].append({
                     "timestamp": entry.timestamp,
                     "message": entry.message
                 })
             
-            # 内存信息
             if "meminfo" in msg or "low memory" in msg or "oom" in msg:
                 state["memory_states"].append({
                     "timestamp": entry.timestamp,
@@ -172,7 +176,6 @@ class AdvancedLogAnalysisSkill(BaseSkill):
                     "message": entry.message
                 })
             
-            # 功耗/热信息
             if "thermal" in msg or "temperature" in msg or "power" in msg:
                 state["thermal_events"].append({
                     "timestamp": entry.timestamp,
@@ -186,7 +189,6 @@ class AdvancedLogAnalysisSkill(BaseSkill):
         """构建时间线"""
         timeline = []
         
-        # 提取时间点
         time_keywords = bug_desc.get("time_points", [])
         
         for entry in log_entries:
@@ -198,5 +200,4 @@ class AdvancedLogAnalysisSkill(BaseSkill):
                     "snippet": entry.message[:100] + "..." if len(entry.message) > 100 else entry.message
                 })
         
-        # 只取前50个时间点
         return timeline[:50]

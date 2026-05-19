@@ -65,41 +65,39 @@ class BugReportParser:
         return all_entries
 
     def parse_file(self, file_path: str) -> List[LogEntry]:
-        """解析单个bugreport文件"""
         entries = []
         try:
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                last_entry = None
                 for line in f:
-                    entry = self._parse_line(line, file_path)
+                    entry = self._parse_line(line, file_path, last_entry)
                     if entry:
                         entries.append(entry)
+                        last_entry = entry
         except (OSError, UnicodeDecodeError) as e:
             logger.warning(f"解析文件 {file_path} 失败: {e}")
         return entries
 
-    def _parse_line(self, line: str, file_path: str) -> Optional[LogEntry]:
-        """解析单行日志，支持多种格式"""
+    def _parse_line(self, line: str, file_path: str, last_entry: Optional[LogEntry] = None) -> Optional[LogEntry]:
         line = line.strip()
         if not line:
             return None
 
-        # 格式1: 01-01 12:00:00.000 1234 5678 V Tag: message
         match1 = re.match(
-            r'(\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d+)\s+(\d+)\s+(\d+)\s+([VDIWEF])\s+([^:]+):\s*(.*)',
+            r'(\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+([VDIWEF])\s+([^:]+):\s*(.*)',
             line
         )
         if match1:
             return LogEntry(
                 timestamp=match1.group(1),
-                pid=int(match1.group(2)),
-                tid=int(match1.group(3)),
-                level=match1.group(4),
-                tag=match1.group(5).strip(),
-                message=match1.group(6),
+                pid=int(match1.group(3)),
+                tid=int(match1.group(4)),
+                level=match1.group(5),
+                tag=match1.group(6).strip(),
+                message=match1.group(7),
                 file_path=file_path
             )
 
-        # 格式2: 01-01 12:00:00.000  1234  5678 V Tag: message
         match2 = re.match(
             r'(\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d+)\s+(\d+)\s+(\d+)\s+([VDIWEF])\s+(\S+)\s*:\s*(.*)',
             line
@@ -115,7 +113,6 @@ class BugReportParser:
                 file_path=file_path
             )
 
-        # 格式3: V/Tag( 1234): message
         match3 = re.match(r'([VDIWEF])/([^(]+)\(\s*(\d+)\):\s*(.*)', line)
         if match3:
             return LogEntry(
@@ -126,7 +123,6 @@ class BugReportParser:
                 file_path=file_path
             )
 
-        # 格式4: 简单时间戳 + 消息
         match4 = re.match(r'(\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s*(.*)', line)
         if match4:
             return LogEntry(
@@ -135,8 +131,21 @@ class BugReportParser:
                 file_path=file_path
             )
 
-        # 默认格式：只保留消息
-        return LogEntry(message=line, file_path=file_path)
+        entry = LogEntry(message=line, file_path=file_path)
+
+        if last_entry:
+            if not entry.timestamp and last_entry.timestamp:
+                entry.timestamp = last_entry.timestamp
+            if not entry.level and last_entry.level:
+                entry.level = last_entry.level
+            if not entry.tag and last_entry.tag:
+                entry.tag = last_entry.tag
+            if not entry.pid and last_entry.pid:
+                entry.pid = last_entry.pid
+            if not entry.tid and last_entry.tid:
+                entry.tid = last_entry.tid
+
+        return entry
 
     def extract_metadata(self) -> Dict[str, str]:
         """从bugreport中提取元数据"""
