@@ -318,7 +318,9 @@ class AnalyticsCollector:
             "recommendations": self._generate_recommendations()
         }
         
-        # 保存报告
+        if self.current_workflow and self.current_workflow.workflow_id:
+            self.set_workflow_analytics_dir(self.current_workflow.workflow_id)
+        
         os.makedirs(self.analytics_dir, exist_ok=True)
         report_file = os.path.join(self.analytics_dir, "system_report.json")
         with open(report_file, 'w', encoding='utf-8') as f:

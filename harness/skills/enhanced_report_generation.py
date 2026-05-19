@@ -7,7 +7,6 @@ import json
 from datetime import datetime
 from typing import Dict, Any
 from .base import BaseSkill, SkillResult
-from harness.core.paths import OUTPUTS_REPORTS_DIR_STR
 
 
 class EnhancedReportGenerationSkill(BaseSkill):
@@ -47,7 +46,10 @@ class EnhancedReportGenerationSkill(BaseSkill):
                 wp.ensure_dirs()
                 output_dir = wp.reports_dir_str
             else:
-                output_dir = OUTPUTS_REPORTS_DIR_STR
+                from harness.core.paths import WorkflowPaths
+                wp = WorkflowPaths("_default")
+                wp.ensure_dirs()
+                output_dir = wp.reports_dir_str
             
             # 确保输出目录
             if not os.path.exists(output_dir):
