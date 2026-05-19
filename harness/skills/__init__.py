@@ -8,10 +8,11 @@ from .llm_analysis import LLMAnalysisSkill
 from .case_library_skill import CaseLibrarySkill
 from .bug_type_analysis_skill import BugTypeAnalysisSkill
 from .multi_round_analysis import MultiRoundAnalysisSkill
+from .log_file_selector import LogFileSelectorSkill
 
 __all__ = ['BaseSkill', 'SkillResult', 
           'LogExtractionSkill', 'BugAnalysisSkill', 
           'ReportGenerationSkill',
           'AdvancedLogAnalysisSkill', 'LLMAnalysisSkill',
           'CaseLibrarySkill', 'BugTypeAnalysisSkill',
-          'MultiRoundAnalysisSkill']
+          'MultiRoundAnalysisSkill', 'LogFileSelectorSkill']

@@ -8,6 +8,7 @@ from typing import List, Dict, Optional
 from dataclasses import dataclass
 from pathlib import Path
 from log_analyzer.parser.log_parser import LogEntry
+from log_analyzer.extractor.log_file_selector import LogFileSelector
 
 from harness.core.logging import get_logger
 
@@ -17,17 +18,25 @@ logger = get_logger(__name__)
 class BugReportParser:
     """Android bugreport 解析器"""
     
-    def __init__(self, log_dir: str):
+    def __init__(self, log_dir: str, use_smart_filter: bool = True):
         self.log_dir = log_dir
         self.log_files = []
+        self._selector = LogFileSelector()
+        self._use_smart_filter = use_smart_filter
         self._find_log_files()
 
     def _find_log_files(self):
-        """查找bugreport相关文件"""
-        for root, _, files in os.walk(self.log_dir):
-            for file in files:
-                if self._is_bugreport_file(file):
-                    self.log_files.append(os.path.join(root, file))
+        """查找bugreport相关文件，使用统一筛选器"""
+        if self._use_smart_filter:
+            matched, filtered = self._selector.scan_directory(self.log_dir)
+            self.log_files = matched
+            if filtered:
+                logger.info(f"  智能过滤: 选中 {len(matched)} 个日志文件, 过滤 {len(filtered)} 个无关文件")
+        else:
+            for root, _, files in os.walk(self.log_dir):
+                for file in files:
+                    if self._is_bugreport_file(file):
+                        self.log_files.append(os.path.join(root, file))
 
     def _is_bugreport_file(self, filename: str) -> bool:
         """判断是否为bugreport相关文件"""

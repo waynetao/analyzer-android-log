@@ -9,6 +9,7 @@ from typing import Dict, Any, List
 from .base import BaseSkill, SkillResult
 from log_analyzer.aloggrep_wrapper import ALogGrep, LogLevel
 from log_analyzer.extractor.extractor import LogExtractor
+from log_analyzer.extractor.log_file_selector import LogFileSelector
 
 logger = logging.getLogger(__name__)
 
@@ -84,22 +85,12 @@ class LogExtractionWithAloggrepSkill(BaseSkill):
             )
     
     def _find_log_files(self, extract_dir: str) -> List[str]:
-        """
-        在提取目录中找到日志文件
-        
-        Args:
-            extract_dir: 提取目录
-            
-        Returns:
-            日志文件路径列表
-        """
-        log_files = []
-        for root, dirs, files in os.walk(extract_dir):
-            for file in files:
-                # 常见的日志文件扩展名
-                if file.endswith(('.log', '.txt', '.logcat', '.xlog')) or '.' not in file:
-                    log_files.append(os.path.join(root, file))
-        return log_files
+        """在提取目录中找到日志文件，使用统一筛选器"""
+        selector = LogFileSelector()
+        matched, filtered = selector.scan_directory(extract_dir)
+        if filtered:
+            logger.info(f"  智能过滤: 选中 {len(matched)} 个日志文件, 过滤 {len(filtered)} 个无关文件")
+        return selector.prioritize(matched)
     
     def _analyze_with_aloggrep(self, log_files: List[str]) -> Dict[str, Any]:
         """

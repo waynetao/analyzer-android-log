@@ -322,6 +322,11 @@ class Orchestrator:
             if isinstance(log_extraction, dict) and isinstance(advanced_analysis, dict):
                 skill_inputs["critical_logs"] = advanced_analysis.get("data", {}).get("critical_logs", [])
 
+        elif skill_name == "log_file_selector":
+            log_extraction = previous_outputs.get("log_extraction", {})
+            if isinstance(log_extraction, dict):
+                skill_inputs["extraction_dir"] = log_extraction.get("data", {}).get("extraction_dir")
+
         elif skill_name == "timeline_builder":
             log_extraction = previous_outputs.get("log_extraction", {})
             advanced_analysis = previous_outputs.get("advanced_log_analysis", {})

@@ -41,25 +41,34 @@ class WorkflowPaths:
     def __init__(self, workflow_id: str):
         self.workflow_id = workflow_id
         
-        # 工作流专属目录
         self.workflow_root = OUTPUTS_DIR / "workflows" / workflow_id
-        self.temp_dir = self.workflow_root / "temp"           # 工作流临时文件（解压等）
-        self.logs_dir = self.workflow_root / "logs"           # 工作流专属日志
-        self.reports_dir = self.workflow_root / "reports"     # 工作流报告
-        self.artifacts_dir = self.workflow_root / "artifacts" # 其他产物
+        self.temp_dir = self.workflow_root / "temp"
+        self.extracted_dir = self.workflow_root / "extracted"
+        self.logs_dir = self.workflow_root / "logs"
+        self.analysis_dir = self.workflow_root / "analysis"
+        self.reports_dir = self.workflow_root / "reports"
+        self.artifacts_dir = self.workflow_root / "artifacts"
         
     def ensure_dirs(self):
         """确保工作流所有目录存在"""
         dirs_to_create = [
             self.workflow_root,
             self.temp_dir,
+            self.extracted_dir,
             self.logs_dir,
+            self.analysis_dir,
             self.reports_dir,
             self.artifacts_dir,
         ]
         for dir_path in dirs_to_create:
             dir_path.mkdir(parents=True, exist_ok=True)
         return self
+    
+    def cleanup_temp(self):
+        """只清理临时目录，保留 extracted 和分析结果"""
+        if self.temp_dir.exists():
+            import shutil
+            shutil.rmtree(self.temp_dir)
     
     def cleanup(self):
         """清理工作流临时目录"""
@@ -71,6 +80,14 @@ class WorkflowPaths:
     @property
     def temp_dir_str(self) -> str:
         return str(self.temp_dir)
+    
+    @property
+    def extracted_dir_str(self) -> str:
+        return str(self.extracted_dir)
+    
+    @property
+    def analysis_dir_str(self) -> str:
+        return str(self.analysis_dir)
     
     @property
     def reports_dir_str(self) -> str:
