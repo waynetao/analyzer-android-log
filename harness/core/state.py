@@ -169,15 +169,13 @@ class WorkflowIndex:
 
 class StateManager:
     def __init__(self, state_dir: str = None):
-        # 使用统一路径配置
         if state_dir is None: state_dir = OUTPUTS_STATE_DIR_STR
         self.state_dir = state_dir
         self.current_state: Dict[str, Any] = {}
         self.checkpoints: List[Dict[str, Any]] = []
-        self._dirty: bool = False  # 脏标记：是否需要持久化
-        self._workflow_paths: Optional[WorkflowPaths] = None  # 工作流路径管理器
-        self.workflow_index = WorkflowIndex()  # 工作流索引
-        self._ensure_dir()
+        self._dirty: bool = False
+        self._workflow_paths: Optional[WorkflowPaths] = None
+        self.workflow_index = WorkflowIndex()
         logger.info(f"StateManager 初始化完成，状态目录: {state_dir}")
     
     def _ensure_dir(self):
@@ -354,6 +352,7 @@ class StateManager:
         """实际执行持久化保存"""
         if "workflow_id" not in self.current_state:
             return
+        os.makedirs(self.state_dir, exist_ok=True)
         state_file = os.path.join(self.state_dir, f"{self.current_state['workflow_id']}.json")
         try:
             with open(state_file, 'w', encoding='utf-8') as f:

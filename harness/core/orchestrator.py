@@ -84,7 +84,7 @@ class Orchestrator:
             output_format=output_format,
             analysis_mode=analysis_mode
         )
-        self.analytics.start_workflow(workflow_name)
+        self.analytics.start_workflow(workflow_name, workflow_id=workflow_id)
         logger.info(f"工作流ID: {workflow_id}")
         
         # 增强输入：添加 workflow_id 和工作流路径
@@ -357,7 +357,7 @@ class Orchestrator:
     def plan(self, workflow_name: str, inputs: Dict[str, Any]) -> Dict[str, Any]:
         """仅执行 PLAN 阶段"""
         workflow_id = self.state_manager.initialize_workflow(workflow_name)
-        self.analytics.start_workflow(workflow_name)
+        self.analytics.start_workflow(workflow_name, workflow_id=workflow_id)
         logger.info(f"开始 PLAN 阶段，工作流: {workflow_name}, ID: {workflow_id}")
 
         try:

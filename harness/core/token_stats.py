@@ -60,7 +60,6 @@ class TokenStatsManager:
                 "TOKEN_STATS_DIR",
                 OUTPUTS_TOKEN_STATS_DIR_STR
             )
-            os.makedirs(self._storage_dir, exist_ok=True)
 
             self._session_stats: Dict[str, TokenUsage] = {}
             self._total_stats = TokenUsage()
@@ -244,6 +243,7 @@ class TokenStatsManager:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"token_stats_{timestamp}.json"
 
+        os.makedirs(self._storage_dir, exist_ok=True)
         filepath = os.path.join(self._storage_dir, filename)
 
         data = {

@@ -122,16 +122,21 @@ class AnalyticsCollector:
             analytics_dir = OUTPUTS_ANALYTICS_DIR_STR
         
         self.analytics_dir = analytics_dir
-        os.makedirs(analytics_dir, exist_ok=True)
         
         self.current_workflow: Optional[WorkflowMetrics] = None
         self.system_metrics = SystemMetrics()
         
         logger.info(f"AnalyticsCollector 初始化完成: {analytics_dir}")
     
-    def start_workflow(self, workflow_name: str) -> str:
-        """开始跟踪工作流"""
-        workflow_id = f"{workflow_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    def start_workflow(self, workflow_name: str, workflow_id: str = None) -> str:
+        """开始跟踪工作流
+        
+        Args:
+            workflow_name: 工作流名称
+            workflow_id: 外部传入的 workflow_id（优先使用，与 StateManager 保持一致）
+        """
+        if workflow_id is None:
+            workflow_id = f"{workflow_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
         self.current_workflow = WorkflowMetrics(
             workflow_id=workflow_id,
@@ -314,6 +319,7 @@ class AnalyticsCollector:
         }
         
         # 保存报告
+        os.makedirs(self.analytics_dir, exist_ok=True)
         report_file = os.path.join(self.analytics_dir, "system_report.json")
         with open(report_file, 'w', encoding='utf-8') as f:
             json.dump(report, f, ensure_ascii=False, indent=2)
