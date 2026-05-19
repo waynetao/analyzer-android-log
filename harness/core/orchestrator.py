@@ -68,7 +68,22 @@ class Orchestrator:
         logger.info(f"开始执行工作流: {workflow_name}")
         
         # 启动统计分析
-        workflow_id = self.state_manager.initialize_workflow(workflow_name)
+        # 从输入中提取 bug 信息
+        bug_desc = inputs.get("bug_description", {})
+        bug_description_text = bug_desc.get("raw_text", "") if isinstance(bug_desc, dict) else str(bug_desc)
+        bug_summary = bug_desc.get("summary", "") if isinstance(bug_desc, dict) else bug_description_text[:100]
+        log_path = inputs.get("log_path", "")
+        output_format = inputs.get("output_format")
+        analysis_mode = inputs.get("analysis_mode")
+        
+        workflow_id = self.state_manager.initialize_workflow(
+            workflow_name,
+            bug_description=bug_description_text,
+            bug_summary=bug_summary,
+            log_path=log_path,
+            output_format=output_format,
+            analysis_mode=analysis_mode
+        )
         self.analytics.start_workflow(workflow_name)
         logger.info(f"工作流ID: {workflow_id}")
         
@@ -109,6 +124,13 @@ class Orchestrator:
             self.state_manager.add_validation_result(
                 "workflow_exception", False, f"Exception: {str(e)}"
             )
+            # 更新索引标记为失败
+            if workflow_id:
+                self.state_manager.workflow_index.update_workflow(
+                    workflow_id,
+                    status="failed",
+                    error_message=str(e)[:500]
+                )
             self.state_manager.flush()  # 确保异常路径也持久化状态
             self.analytics.end_workflow(status="failed", error_message=str(e))
             raise
