@@ -24,7 +24,7 @@ class MultiRoundAnalysisSkill(LLMBasedSkill):
     def __init__(self, api_key: str = None, base_url: str = None, model: str = None):
         super().__init__(api_key, base_url, model, scene="multi_round_analysis")
         # 三轮分析的配置
-        self.max_tokens_rounds = [4000, 6000, 4000]  # 每轮的最大token数
+        self.max_tokens_rounds = [8000, 12000, 8000]  # 每轮的最大token数
     
     def execute(self, inputs: Dict[str, Any]) -> SkillResult:
         valid, msg = self._validate_inputs(inputs, ["bug_description", "advanced_log_analysis"])
