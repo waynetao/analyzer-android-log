@@ -39,6 +39,11 @@ class WorkflowMetadata:
     analysis_mode: Optional[str] = None
     tags: Optional[List[str]] = None
     notes: Optional[str] = None
+    additional_findings: Optional[List[Dict[str, Any]]] = None
+
+    def __post_init__(self):
+        if self.additional_findings is None:
+            self.additional_findings = []
 
 
 class WorkflowIndex:

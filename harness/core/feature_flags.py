@@ -324,12 +324,19 @@ class FeatureSDK:
     """Feature Flag SDK - 简化接入"""
     
     _instance = None
+    _initialized = False
     
     def __new__(cls, engine: FeatureFlagEngine = None):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance.engine = engine or FeatureFlagEngine()
         return cls._instance
+    
+    def __init__(self, engine: FeatureFlagEngine = None):
+        if not self._initialized:
+            self.engine = engine or FeatureFlagEngine()
+            FeatureSDK._initialized = True
+        elif engine is not None and engine is not self.engine:
+            logger.warning("FeatureSDK already initialized, ignoring new engine instance")
     
     def is_enabled(self, flag_name: str, context: Dict = None) -> bool:
         """检查 Flag 是否启用"""

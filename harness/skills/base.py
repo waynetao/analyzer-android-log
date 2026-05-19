@@ -31,6 +31,8 @@ class SkillResult:
 class BaseSkill(ABC):
     """技能基类 - 所有技能必须实现此接口"""
     
+    input_mapping: Dict[str, str] = {}
+    
     @property
     @abstractmethod
     def name(self) -> str:
@@ -48,6 +50,39 @@ class BaseSkill(ABC):
             if key not in inputs:
                 return False, f"缺少必需参数: {key}"
         return True, "OK"
+    
+    def resolve_inputs(self, global_inputs: Dict[str, Any], previous_outputs: Dict[str, Any]) -> Dict[str, Any]:
+        """根据 input_mapping 声明式解析技能输入
+        
+        input_mapping 格式: {目标参数名: "source_type:source_path"}
+        source_type: "input" (来自全局输入) 或 "output" (来自前序技能输出)
+        source_path: 点分隔的路径，如 "advanced_log_analysis.data"
+        """
+        resolved = {**global_inputs, **previous_outputs}
+        
+        for target_key, source_spec in self.input_mapping.items():
+            if target_key in resolved:
+                continue
+            
+            parts = source_spec.split(":", 1)
+            if len(parts) == 2:
+                source_type, source_path = parts
+                if source_type == "output":
+                    data = previous_outputs
+                else:
+                    data = global_inputs
+                
+                for key in source_path.split("."):
+                    if isinstance(data, dict):
+                        data = data.get(key)
+                    else:
+                        data = None
+                        break
+                
+                if data is not None:
+                    resolved[target_key] = data
+        
+        return resolved
 
 
 class LLMBasedSkill(BaseSkill):
@@ -73,14 +108,14 @@ class LLMBasedSkill(BaseSkill):
             self.base_url = base_url or os.environ.get(f"LLM_{scene.upper()}_BASE_URL") or os.environ.get("LLM_BASE_URL") or os.environ.get("OPENAI_BASE_URL", "")
             self.model = model or os.environ.get(f"LLM_{scene.upper()}_MODEL") or os.environ.get("LLM_MODEL") or os.environ.get("OPENAI_MODEL")
             self.temperature = float(os.environ.get(f"LLM_{scene.upper()}_TEMPERATURE", os.environ.get("LLM_TEMPERATURE", "0.7")))
-            self.max_tokens = int(os.environ.get(f"LLM_{scene.upper()}_MAX_TOKENS", os.environ.get("LLM_MAX_TOKENS", "2000")))
+            self.max_tokens = int(os.environ.get(f"LLM_{scene.upper()}_MAX_TOKENS", os.environ.get("LLM_MAX_TOKENS", "4000")))
         else:
             # 无场景时使用通用配置
             self.api_key = api_key or os.environ.get("LLM_API_KEY") or os.environ.get("OPENAI_API_KEY", "")
             self.base_url = base_url or os.environ.get("LLM_BASE_URL") or os.environ.get("OPENAI_BASE_URL", "")
             self.model = model or os.environ.get("LLM_MODEL") or os.environ.get("OPENAI_MODEL")
             self.temperature = float(os.environ.get("LLM_TEMPERATURE", "0.7"))
-            self.max_tokens = int(os.environ.get("LLM_MAX_TOKENS", "2000"))
+            self.max_tokens = int(os.environ.get("LLM_MAX_TOKENS", "4000"))
         
         self.client: Optional[Any] = None
         self.use_mock = True
@@ -105,7 +140,9 @@ class LLMBasedSkill(BaseSkill):
     def _call_llm(
         self,
         system_prompt: str,
-        user_prompt: str
+        user_prompt: str,
+        max_tokens: int = None,
+        temperature: float = None
     ) -> str:
         """
         调用 LLM，自动传递场景和技能名称用于 Token 统计
@@ -113,6 +150,8 @@ class LLMBasedSkill(BaseSkill):
         Args:
             system_prompt: 系统提示词
             user_prompt: 用户提示词
+            max_tokens: 最大 Token 数（可选，默认使用实例配置）
+            temperature: 温度参数（可选，默认使用实例配置）
         
         Returns:
             LLM 响应内容
@@ -123,8 +162,8 @@ class LLMBasedSkill(BaseSkill):
         return self.client.chat_completion(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
-            temperature=self.temperature,
-            max_tokens=self.max_tokens,
+            temperature=temperature if temperature is not None else self.temperature,
+            max_tokens=max_tokens if max_tokens is not None else self.max_tokens,
             scene=self.scene,
             skill=self.name
         )

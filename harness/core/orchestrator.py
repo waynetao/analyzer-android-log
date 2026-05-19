@@ -301,9 +301,14 @@ class Orchestrator:
             "context": self.context_engine.get_core_context()
         }
 
-        # 特定技能的参数映射 - 基于前面技能的输出
+        skill = self.skills.get(skill_name)
+        if skill and skill.input_mapping:
+            mapped = skill.resolve_inputs(global_inputs, previous_outputs)
+            for key, value in mapped.items():
+                if key not in skill_inputs:
+                    skill_inputs[key] = value
+
         if skill_name == "knowledge_retrieval":
-            # 从日志分析结果中提取关键信息作为查询
             advanced_analysis = previous_outputs.get("advanced_log_analysis", {})
             if isinstance(advanced_analysis, dict):
                 analysis_data = advanced_analysis.get("data", {})
@@ -312,14 +317,12 @@ class Orchestrator:
                     skill_inputs["bug_type"] = analysis_data.get("bug_type", "unknown")
 
         elif skill_name == "log_evidence_matcher":
-            # 从日志提取结果中获取关键日志
             log_extraction = previous_outputs.get("log_extraction", {})
             advanced_analysis = previous_outputs.get("advanced_log_analysis", {})
             if isinstance(log_extraction, dict) and isinstance(advanced_analysis, dict):
                 skill_inputs["critical_logs"] = advanced_analysis.get("data", {}).get("critical_logs", [])
 
         elif skill_name == "timeline_builder":
-            # 从日志提取结果中获取日志条目
             log_extraction = previous_outputs.get("log_extraction", {})
             advanced_analysis = previous_outputs.get("advanced_log_analysis", {})
             if isinstance(log_extraction, dict):
