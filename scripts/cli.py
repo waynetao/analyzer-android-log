@@ -40,6 +40,7 @@ from harness.skills.log_evidence_matcher import LogEvidenceMatcherSkill, Timelin
 from harness.skills.knowledge_retrieval import KnowledgeRetrievalSkill
 from harness.skills.bug_type_analysis_skill import BugTypeAnalysisSkill
 from harness.skills.case_library_skill import CaseLibrarySkill
+from harness.skills.log_file_selector import LogFileSelectorSkill
 
 
 class UnifiedAgent:
@@ -104,6 +105,17 @@ class UnifiedAgent:
         # 基础技能（始终注册）
         self.orchestrator.register_skill(LogExtractionSkill())
         print("  ✅ LogExtractionSkill (基础技能)")
+        
+        # LLM 智能文件筛选（在 log_extraction 之后执行）
+        if self.feature_sdk.is_enabled("llm_analysis_enabled"):
+            self.orchestrator.register_skill(LogFileSelectorSkill(
+                api_key=self.llm_skill.api_key,
+                base_url=self.llm_skill.base_url,
+                model=self.llm_skill.model
+            ))
+            print("  ✅ LogFileSelectorSkill (LLM 智能筛选)")
+        else:
+            print("  ⏭️ LogFileSelectorSkill (LLM 未启用，使用规则筛选)")
         
         self.orchestrator.register_skill(AdvancedLogAnalysisSkill())
         print("  ✅ AdvancedLogAnalysisSkill (基础技能)")

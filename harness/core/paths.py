@@ -36,30 +36,58 @@ class WorkflowPaths:
     """按 workflowID 隔离的路径管理器
     
     为每个工作流提供独立的临时目录、报告目录等，避免冲突
+    
+    目录结构:
+    outputs/
+    ├── index/                  ← 全局：工作流索引
+    ├── case_library/           ← 全局：案例库（跨 workflow 共享）
+    ├── openviking_data/        ← 全局：OpenViking 记忆
+    └── workflows/{id}/
+        ├── state/              ← 工作流状态文件
+        ├── extracted/          ← 解压产物
+        ├── analysis/           ← 分析结果
+        ├── reports/            ← 生成的报告
+        ├── analytics/          ← Token 统计、执行指标
+        ├── logs/               ← 工作流日志
+        ├── artifacts/          ← 其他产物
+        └── temp/               ← 临时文件（可安全清理）
     """
     
     def __init__(self, workflow_id: str):
         self.workflow_id = workflow_id
         
-        # 工作流专属目录
         self.workflow_root = OUTPUTS_DIR / "workflows" / workflow_id
-        self.temp_dir = self.workflow_root / "temp"           # 工作流临时文件（解压等）
-        self.logs_dir = self.workflow_root / "logs"           # 工作流专属日志
-        self.reports_dir = self.workflow_root / "reports"     # 工作流报告
-        self.artifacts_dir = self.workflow_root / "artifacts" # 其他产物
+        self.temp_dir = self.workflow_root / "temp"
+        self.extracted_dir = self.workflow_root / "extracted"
+        self.state_dir = self.workflow_root / "state"
+        self.analysis_dir = self.workflow_root / "analysis"
+        self.reports_dir = self.workflow_root / "reports"
+        self.analytics_dir = self.workflow_root / "analytics"
+        self.logs_dir = self.workflow_root / "logs"
+        self.artifacts_dir = self.workflow_root / "artifacts"
         
     def ensure_dirs(self):
         """确保工作流所有目录存在"""
         dirs_to_create = [
             self.workflow_root,
             self.temp_dir,
-            self.logs_dir,
+            self.extracted_dir,
+            self.state_dir,
+            self.analysis_dir,
             self.reports_dir,
+            self.analytics_dir,
+            self.logs_dir,
             self.artifacts_dir,
         ]
         for dir_path in dirs_to_create:
             dir_path.mkdir(parents=True, exist_ok=True)
         return self
+    
+    def cleanup_temp(self):
+        """只清理临时目录，保留 extracted 和分析结果"""
+        if self.temp_dir.exists():
+            import shutil
+            shutil.rmtree(self.temp_dir)
     
     def cleanup(self):
         """清理工作流临时目录"""
@@ -73,8 +101,24 @@ class WorkflowPaths:
         return str(self.temp_dir)
     
     @property
+    def extracted_dir_str(self) -> str:
+        return str(self.extracted_dir)
+    
+    @property
+    def state_dir_str(self) -> str:
+        return str(self.state_dir)
+    
+    @property
+    def analysis_dir_str(self) -> str:
+        return str(self.analysis_dir)
+    
+    @property
     def reports_dir_str(self) -> str:
         return str(self.reports_dir)
+    
+    @property
+    def analytics_dir_str(self) -> str:
+        return str(self.analytics_dir)
 
 
 # 确保必要目录存在

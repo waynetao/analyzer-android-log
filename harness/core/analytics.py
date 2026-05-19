@@ -266,10 +266,21 @@ class AnalyticsCollector:
         self.current_workflow.exception_count = exception_count
         self.current_workflow.critical_log_count = critical_log_count
     
+    def set_workflow_analytics_dir(self, workflow_id: str):
+        """设置当前工作流的 analytics 目录"""
+        from .paths import WorkflowPaths
+        wp = WorkflowPaths(workflow_id)
+        wp.ensure_dirs()
+        self.analytics_dir = wp.analytics_dir_str
+        os.makedirs(self.analytics_dir, exist_ok=True)
+    
     def _save_workflow_report(self):
         """保存单个工作流报告"""
         if not self.current_workflow:
             return
+        
+        if self.current_workflow.workflow_id:
+            self.set_workflow_analytics_dir(self.current_workflow.workflow_id)
         
         report_file = os.path.join(
             self.analytics_dir,

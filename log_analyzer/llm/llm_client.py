@@ -209,6 +209,11 @@ class LLMClient:
         skill: Optional[str] = None
     ) -> str:
         """执行实际的 API 调用"""
+        import json
+        from datetime import datetime
+        
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')[:-3]
+        
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -250,12 +255,128 @@ class LLMClient:
                     f"LLM Token 使用: prompt={prompt_tokens}, "
                     f"completion={completion_tokens}, total={prompt_tokens + completion_tokens}"
                 )
+            
+            # 记录完整 LLM 交互
+            self._log_llm_interaction(
+                timestamp, system_prompt, user_prompt, content,
+                temperature, max_tokens, scene, skill,
+                prompt_tokens, completion_tokens
+            )
 
             return content
 
         except Exception as e:
             logger.error(f"LLM API 调用异常: {e}")
+            # 记录失败的交互
+            self._log_llm_interaction(
+                timestamp, system_prompt, user_prompt, f"ERROR: {str(e)}",
+                temperature, max_tokens, scene, skill,
+                0, 0, is_error=True
+            )
             raise
+    
+    def _log_llm_interaction(
+        self, timestamp: str,
+        system_prompt: str, user_prompt: str, response: str,
+        temperature: float, max_tokens: int,
+        scene: Optional[str], skill: Optional[str],
+        prompt_tokens: int, completion_tokens: int,
+        is_error: bool = False
+    ):
+        """记录完整的 LLM 交互到文件
+        
+        保存位置:
+        - 如果有 workflow_id (从 scene 中提取): outputs/workflows/{id}/llm_interactions/
+        - 否则: outputs/llm_interactions/
+        """
+        import os
+        import json
+        from datetime import datetime
+        
+        # 确定输出目录
+        output_dir = None
+        workflow_id = None
+        
+        # 尝试从 scene 中提取 workflow_id（scene 格式: bug_analysis_{id}）
+        if scene:
+            scene_parts = scene.split('_')
+            if len(scene_parts) >= 3:
+                from harness.core.paths import WorkflowPaths
+                # 尝试常见的 workflow id 模式
+                for i in range(2, len(scene_parts) + 1):
+                    candidate_id = '_'.join(scene_parts[-i:])
+                    candidate_path = WorkflowPaths(candidate_id)
+                    if candidate_path.workflow_root and os.path.exists(candidate_path.workflow_root):
+                        workflow_id = candidate_id
+                        output_dir = str(candidate_path.workflow_root) + '/llm_interactions'
+                        break
+        
+        # 回退到全局目录
+        if not output_dir:
+            from harness.core.paths import OUTPUTS_DIR
+            output_dir = str(OUTPUTS_DIR) + '/llm_interactions'
+        
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # 构建日志文件
+        file_prefix = 'error_' if is_error else 'call_'
+        file_name = f"{file_prefix}{timestamp}_{skill or 'unknown'}.json"
+        log_file = os.path.join(output_dir, file_name)
+        
+        log_data = {
+            'timestamp': timestamp,
+            'datetime': datetime.now().isoformat(),
+            'model': self.model,
+            'temperature': temperature,
+            'max_tokens': max_tokens,
+            'scene': scene,
+            'skill': skill,
+            'workflow_id': workflow_id,
+            'is_error': is_error,
+            'prompt': {
+                'system': system_prompt,
+                'user': user_prompt
+            },
+            'response': response,
+            'token_usage': {
+                'prompt': prompt_tokens,
+                'completion': completion_tokens,
+                'total': prompt_tokens + completion_tokens
+            }
+        }
+        
+        try:
+            with open(log_file, 'w', encoding='utf-8') as f:
+                json.dump(log_data, f, ensure_ascii=False, indent=2)
+            
+            # 同时创建更易读的 .md 文件
+            md_file = log_file.replace('.json', '.md')
+            md_content = f"# LLM 交互日志 - {skill or '未知技能'}\n\n"
+            md_content += f"**时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            md_content += f"**模型**: {self.model}\n"
+            md_content += f"**温度**: {temperature}\n"
+            md_content += f"**Max Tokens**: {max_tokens}\n"
+            if workflow_id:
+                md_content += f"**工作流**: {workflow_id}\n"
+            md_content += "\n---\n\n"
+            md_content += "## System Prompt\n\n"
+            md_content += system_prompt
+            md_content += "\n\n---\n\n"
+            md_content += "## User Prompt\n\n"
+            md_content += user_prompt
+            md_content += "\n\n---\n\n"
+            md_content += "## Response\n\n"
+            md_content += response
+            md_content += "\n\n---\n\n"
+            md_content += f"**Token 使用**: Prompt={prompt_tokens}, Completion={completion_tokens}, Total={prompt_tokens + completion_tokens}\n"
+            
+            with open(md_file, 'w', encoding='utf-8') as f:
+                f.write(md_content)
+            
+            logger.debug(f"LLM 交互已记录: {log_file}")
+            
+        except Exception as e:
+            logger.warning(f"记录 LLM 交互失败: {e}")
 
     def _get_retry_delay(self, attempt: int, error: Exception) -> float:
         """计算重试延迟时间"""

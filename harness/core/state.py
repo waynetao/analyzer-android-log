@@ -193,20 +193,14 @@ class StateManager:
     def initialize_workflow(self, workflow_name: str, bug_description: str = "", 
                            bug_summary: str = "", log_path: str = "", 
                            output_format: str = None, analysis_mode: str = None) -> str:
-        """初始化工作流状态
-        
-        Args:
-            workflow_name: 工作流名称
-            bug_description: 完整的 bug 描述
-            bug_summary: bug 摘要
-            log_path: 日志文件路径
-            output_format: 输出格式
-            analysis_mode: 分析模式
-        """
         workflow_id = f"{workflow_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
         
-        # 初始化工作流专属路径
         self._workflow_paths = WorkflowPaths(workflow_id).ensure_dirs()
+        
+        if self.state_dir == OUTPUTS_STATE_DIR_STR:
+            self.state_dir = self._workflow_paths.state_dir_str
+            self._ensure_dir()
+        
         logger.info(f"工作流专属目录初始化: {self._workflow_paths.workflow_root}")
         
         self.current_state = {
@@ -241,17 +235,33 @@ class StateManager:
         return workflow_id
     
     def load_state(self, workflow_id: str) -> Dict[str, Any]:
-        """从文件加载指定工作流的状态"""
-        state_file = os.path.join(self.state_dir, f"{workflow_id}.json")
-        if not os.path.exists(state_file):
+        """从文件加载指定工作流的状态
+        
+        查找顺序:
+        1. workflows/{id}/state/{id}.json (新路径)
+        2. {self.state_dir}/{id}.json (旧路径兼容)
+        """
+        state_file = None
+        
+        wp = WorkflowPaths(workflow_id)
+        new_path = os.path.join(str(wp.state_dir), f"{workflow_id}.json")
+        if os.path.exists(new_path):
+            state_file = new_path
+        else:
+            old_path = os.path.join(self.state_dir, f"{workflow_id}.json")
+            if os.path.exists(old_path):
+                state_file = old_path
+        
+        if not state_file:
             logger.error(f"工作流状态文件不存在: {workflow_id}")
             raise FileNotFoundError(f"工作流 '{workflow_id}' 不存在")
+        
         try:
             with open(state_file, 'r', encoding='utf-8') as f:
                 self.current_state = json.load(f)
             
-            # 重新初始化工作流路径
             self._workflow_paths = WorkflowPaths(workflow_id).ensure_dirs()
+            self.state_dir = self._workflow_paths.state_dir_str
             
             logger.info(f"工作流状态已加载: {workflow_id}")
             return copy.deepcopy(self.current_state)
