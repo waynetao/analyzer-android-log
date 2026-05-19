@@ -44,7 +44,7 @@ class LLMClient:
             )
         self.model = configured_model
         self.temperature = float(os.environ.get("LLM_TEMPERATURE", "0.7"))
-        self.max_tokens = int(os.environ.get("LLM_MAX_TOKENS", "2000"))
+        self.max_tokens = int(os.environ.get("LLM_MAX_TOKENS", "4000"))
 
         # 重试配置
         self.max_retries = max_retries if max_retries is not None else int(os.environ.get("LLM_MAX_RETRIES", "3"))

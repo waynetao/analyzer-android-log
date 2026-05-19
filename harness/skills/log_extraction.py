@@ -24,10 +24,18 @@ class LogExtractionSkill(BaseSkill):
             return SkillResult(False, {}, msg)
         
         log_path = inputs["log_path"]
+        workflow_id = inputs.get("workflow_id")
+        workflow_temp_dir = inputs.get("workflow_temp_dir")
         
         try:
-            # 1. 解压和提取
-            extractor = LogExtractor()
+            # 1. 解压和提取 - 使用 workflow 专属路径
+            if workflow_id:
+                extractor = LogExtractor(workflow_id=workflow_id)
+            elif workflow_temp_dir:
+                extractor = LogExtractor(temp_dir=workflow_temp_dir)
+            else:
+                extractor = LogExtractor()
+            
             extract_dir = extractor.extract(log_path)
             
             # 2. 解析日志
@@ -43,7 +51,8 @@ class LogExtractionSkill(BaseSkill):
                 "extraction_dir": extract_dir,
                 "log_count": len(log_entries),
                 "metadata": metadata,
-                "log_files": [str(f) for f in parser.log_files]
+                "log_files": [str(f) for f in parser.log_files],
+                "workflow_id": workflow_id
             }
             
             return SkillResult(

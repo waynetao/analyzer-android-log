@@ -334,6 +334,8 @@ def main():
     _add_skill_subparser(subparsers)
     _add_status_subparser(subparsers)
     _add_list_subparser(subparsers)
+    _add_search_subparser(subparsers)
+    _add_info_subparser(subparsers)
     
     args = parser.parse_args()
     
@@ -406,7 +408,20 @@ def _add_status_subparser(subparsers):
 
 
 def _add_list_subparser(subparsers):
-    subparsers.add_parser("list", help="列出所有工作流")
+    list_parser = subparsers.add_parser("list", help="列出所有工作流")
+    list_parser.add_argument("--detailed", "-d", action="store_true", help="显示详细信息")
+    list_parser.add_argument("--limit", "-l", type=int, help="限制显示数量")
+    list_parser.add_argument("--status", choices=["running", "completed", "failed"], help="按状态过滤")
+
+
+def _add_search_subparser(subparsers):
+    search_parser = subparsers.add_parser("search", help="搜索工作流")
+    search_parser.add_argument("keyword", help="搜索关键词")
+
+
+def _add_info_subparser(subparsers):
+    info_parser = subparsers.add_parser("info", help="查看工作流详情")
+    info_parser.add_argument("--workflow-id", "-w", required=True, help="工作流ID")
 
 
 def _dispatch_command(args, agent: UnifiedAgent):
@@ -420,6 +435,8 @@ def _dispatch_command(args, agent: UnifiedAgent):
         "skill": _handle_skill,
         "status": _handle_status,
         "list": _handle_list,
+        "search": _handle_search,
+        "info": _handle_info,
     }
     handler = handlers.get(args.command)
     if handler:
@@ -518,12 +535,90 @@ def _handle_status(args, agent: UnifiedAgent):
 
 
 def _handle_list(args, agent: UnifiedAgent):
-    workflows = agent.orchestrator.list_workflows()
-    print("\n" + "="*60)
-    print(f"📋 已保存工作流 ({len(workflows)} 个)")
-    print("="*60)
-    for wf in sorted(workflows):
-        print(f"  - {wf}")
+    # 支持详细列表（使用新索引）
+    if hasattr(args, 'detailed') and args.detailed:
+        status = getattr(args, 'status', None)
+        workflows = agent.state_manager.workflow_index.list_workflows(
+            limit=getattr(args, 'limit', None),
+            status=status
+        )
+        print_workflow_list_detailed(workflows)
+    else:
+        workflows = agent.orchestrator.list_workflows()
+        print("\n" + "=" * 60)
+        print(f"📋 已保存工作流 ({len(workflows)} 个)")
+        print("=" * 60)
+        for wf in sorted(workflows):
+            print(f"  - {wf}")
+
+
+def print_workflow_list_detailed(workflows):
+    """打印详细的工作流列表"""
+    if not workflows:
+        print("\n没有找到工作流")
+        return
+    
+    print("\n" + "=" * 100)
+    print(f"📋 工作流列表 ({len(workflows)} 个)")
+    print("=" * 100)
+    
+    for i, wf in enumerate(workflows, 1):
+        status_icon = {
+            "running": "🔄",
+            "completed": "✅",
+            "failed": "❌"
+        }.get(wf.get('status'), "❓")
+        
+        print(f"\n{i}. {status_icon} {wf.get('workflow_id')}")
+        print(f"   名称: {wf.get('workflow_name', '')}")
+        print(f"   摘要: {wf.get('bug_summary', '')}")
+        print(f"   日志: {wf.get('log_path', '')}")
+        print(f"   状态: {wf.get('status', '')}")
+        print(f"   阶段: {wf.get('current_stage', '')}")
+        print(f"   创建: {wf.get('created_at', '')}")
+        if wf.get('analysis_mode'):
+            print(f"   模式: {wf.get('analysis_mode')}")
+
+
+def _handle_search(args, agent: UnifiedAgent):
+    """搜索工作流"""
+    keyword = args.keyword
+    workflows = agent.state_manager.workflow_index.search_workflows(keyword)
+    print(f"\n🔍 搜索关键词: '{keyword}'")
+    print_workflow_list_detailed(workflows)
+
+
+def _handle_info(args, agent: UnifiedAgent):
+    """查看单个工作流详情"""
+    workflow_id = args.workflow_id
+    workflow = agent.state_manager.workflow_index.get_workflow(workflow_id)
+    
+    if not workflow:
+        print(f"\n❌ 未找到工作流: {workflow_id}")
+        return
+    
+    print("\n" + "=" * 100)
+    print(f"📋 工作流详情")
+    print("=" * 100)
+    print(f"\nID:        {workflow.get('workflow_id')}")
+    print(f"名称:      {workflow.get('workflow_name')}")
+    print(f"状态:      {workflow.get('status')}")
+    print(f"当前阶段:  {workflow.get('current_stage')}")
+    print(f"创建时间:  {workflow.get('created_at')}")
+    if 'updated_at' in workflow:
+        print(f"更新时间:  {workflow.get('updated_at')}")
+    print(f"\nBug 摘要:  {workflow.get('bug_summary')}")
+    print(f"\nBug 描述:  {workflow.get('bug_description')}")
+    print(f"\n日志路径:  {workflow.get('log_path')}")
+    if workflow.get('output_format'):
+        print(f"输出格式:  {workflow.get('output_format')}")
+    if workflow.get('analysis_mode'):
+        print(f"分析模式:  {workflow.get('analysis_mode')}")
+    if workflow.get('tags'):
+        print(f"标签:      {', '.join(workflow.get('tags'))}")
+    if workflow.get('notes'):
+        print(f"\n备注:      {workflow.get('notes')}")
+    print("")
 
 
 if __name__ == "__main__":

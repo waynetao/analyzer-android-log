@@ -89,11 +89,14 @@ class LogEvidenceMatcherSkill(LLMBasedSkill):
             "user_description": "用户描述的现象",
             "log_evidence": "对应的日志证据",
             "matched": true或false,
-            "confidence": 0.0到1.0
+            "confidence": 0.0到1.0,
+            "log_idx": 对应的日志索引（从0开始的数字）
         }}
     ],
     "what_we_saw_in_logs": ["在日志中观察到的关键事件列表"],
-    "what_happened": ["按时间顺序的事件描述"]
+    "what_happened": ["按时间顺序的事件描述"],
+    "matched_logs_indices": [与用户问题匹配的日志索引列表],
+    "additional_findings_indices": [额外发现的严重问题的日志索引列表]
 }}
 
 只返回JSON，不要其他文字。"""
@@ -107,8 +110,18 @@ class LogEvidenceMatcherSkill(LLMBasedSkill):
             json_start = response.find('{')
             json_end = response.rfind('}') + 1
             if json_start >= 0 and json_end > json_start:
-                return json.loads(response[json_start:json_end])
-        except (json.JSONDecodeError, ValueError):
+                result = json.loads(response[json_start:json_end])
+                # 处理匹配和额外发现的日志
+                matched_indices = result.get("matched_logs_indices", [])
+                additional_indices = result.get("additional_findings_indices", [])
+                
+                # 转换为实际日志对象
+                result["matched_logs"] = [critical_logs[idx] for idx in matched_indices if idx < len(critical_logs)]
+                result["additional_findings"] = [critical_logs[idx] for idx in additional_indices if idx < len(critical_logs)]
+                
+                return result
+        except (json.JSONDecodeError, ValueError, Exception) as e:
+            logger.warning(f"LLM匹配处理失败，降级到规则匹配: {e}")
             pass
         
         return self._rule_based_match(bug_desc, critical_logs, device_state)
@@ -125,7 +138,11 @@ class LogEvidenceMatcherSkill(LLMBasedSkill):
         keywords = bug_desc.get("keywords", []) or []
         search_terms = keywords + [word for word in user_desc.split() if len(word) > 2]
         
-        for log in critical_logs[:20]:
+        # 跟踪匹配和未匹配的问题
+        matched_logs_idx = set()
+        unmatched_logs = []
+        
+        for idx, log in enumerate(critical_logs[:20]):
             if isinstance(log, dict):
                 msg = log.get("message", "").lower()
             else:
@@ -138,10 +155,18 @@ class LogEvidenceMatcherSkill(LLMBasedSkill):
                     "user_description": user_desc[:100],
                     "log_evidence": msg[:200],
                     "matched": True,
-                    "confidence": confidence
+                    "confidence": confidence,
+                    "log_idx": idx
                 })
                 matched_count += 1
                 total_confidence += confidence
+                matched_logs_idx.add(idx)
+            else:
+                # 收集未匹配的日志
+                unmatched_logs.append({
+                    "log_idx": idx,
+                    "log": log
+                })
         
         avg_confidence = total_confidence / max(matched_count, 1)
         
@@ -151,11 +176,18 @@ class LogEvidenceMatcherSkill(LLMBasedSkill):
             "scene_changes": [],
             "what_we_saw_in_logs": [f"找到 {matched_count} 条与用户描述相关的日志"],
             "what_happened": [],
-            "confidence_explanation": f"基于规则匹配，共匹配 {matched_count} 条日志，平均置信度 {avg_confidence:.2f}"
+            "confidence_explanation": f"基于规则匹配，共匹配 {matched_count} 条日志，平均置信度 {avg_confidence:.2f}",
+            # 新增：区分匹配和未匹配的问题
+            "matched_logs": [critical_logs[idx] for idx in matched_logs_idx if idx < len(critical_logs)],
+            "additional_findings": [item["log"] for item in unmatched_logs]
         }
     
     def _mock_match(self, bug_desc: Dict, critical_logs: List, device_state: Dict) -> Dict:
         """模拟证据匹配"""
+        # 模拟拆分匹配和额外发现
+        crash_logs = [log for log in critical_logs if log.get("type") == "crash"]
+        other_logs = [log for log in critical_logs if log.get("type") != "crash"]
+        
         return {
             "confidence_score": 0.92,
             "timeline_match": [
@@ -164,7 +196,7 @@ class LogEvidenceMatcherSkill(LLMBasedSkill):
                     "log_evidence": "找到了对应时间的崩溃日志",
                     "matched": True,
                     "confidence": 0.95,
-                    "log_entries": [log for log in critical_logs if log.get("type") == "crash"][:2]
+                    "log_entries": crash_logs[:2]
                 },
                 {
                     "user_description": "问题发生在11:25-11:30",
@@ -206,7 +238,10 @@ class LogEvidenceMatcherSkill(LLMBasedSkill):
 2. 异常堆栈与用户描述的崩溃现象一致
 3. 包名匹配
 4. 有完整的崩溃堆栈信息
-"""
+""",
+            # 新增：区分匹配和未匹配的问题
+            "matched_logs": crash_logs,
+            "additional_findings": other_logs
         }
 
 

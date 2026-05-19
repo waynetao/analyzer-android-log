@@ -118,6 +118,55 @@ class ReportGenerationSkill(BaseSkill):
         
         return log_data
     
+    def _generate_multi_round_section(self, multi_round_data: Dict[str, Any]) -> str:
+        """生成多轮分析章节"""
+        rounds = multi_round_data.get("rounds", [])
+        confidence = multi_round_data.get("confidence", {})
+        
+        content = """
+## 🤖 多轮深度分析
+
+"""
+        
+        # 添加置信度信息
+        if confidence:
+            root_cause_conf = confidence.get("root_cause", 0) * 100
+            fix_conf = confidence.get("fix_feasibility", 0) * 100
+            content += f"""
+### 分析置信度
+
+- **根因分析置信度**: {root_cause_conf:.0f}%
+- **修复方案可行性**: {fix_conf:.0f}%
+
+"""
+        
+        # 添加每轮的分析结果
+        for round_data in rounds:
+            round_num = round_data.get("round", 0)
+            round_name = round_data.get("name", f"第{round_num}轮")
+            round_analysis = round_data.get("analysis", "")
+            
+            content += f"""
+### 第{round_num}轮：{round_name}
+
+{round_analysis}
+
+---
+"""
+        
+        # 添加推荐修复方案
+        recommended_fix = multi_round_data.get("recommended_fix", "")
+        if recommended_fix and recommended_fix != "请参考详细分析":
+            content += f"""
+
+### 💡 推荐修复方案
+
+{recommended_fix}
+
+"""
+        
+        return content
+    
     def _generate_aloggrep_section(self, aloggrep_data: Dict[str, Any]) -> str:
         """生成 aloggrep 分析章节的 Markdown 部分"""
         if not aloggrep_data:
@@ -215,13 +264,21 @@ class ReportGenerationSkill(BaseSkill):
         
         llm_section = ""
         if llm_analysis and "analysis" in llm_analysis:
-            llm_section = f"""
+            # 检查是否是多轮分析结果
+            if "multi_round_analysis" in llm_analysis:
+                # 多轮分析模式
+                multi_round_data = llm_analysis.get("multi_round_analysis", {})
+                llm_section = self._generate_multi_round_section(multi_round_data)
+            else:
+                # 标准分析模式
+                llm_section = f"""
 ## 🤖 LLM 高级分析
 
 {llm_analysis['analysis']}
 """
         
         evidence_section = ""
+        additional_findings_section = ""
         if evidence_data:
             confidence = evidence_data.get('confidence_score', 0)
             what_we_saw = '\n'.join(f'- {item}' for item in evidence_data.get('what_we_saw_in_logs', []))
@@ -256,6 +313,40 @@ class ReportGenerationSkill(BaseSkill):
 
 ### 发生了什么
 {what_happened}
+"""
+            
+            # ============ 新增：额外发现的问题章节 ============
+            additional_findings = evidence_data.get('additional_findings', [])
+            if additional_findings:
+                additional_content = ""
+                for idx, log in enumerate(additional_findings[:10], 1):
+                    if isinstance(log, dict):
+                        log_type = log.get('type', 'unknown').upper()
+                        timestamp = log.get('timestamp', 'N/A')
+                        level = log.get('level', 'N/A')
+                        tag = log.get('tag', 'N/A')
+                        message = log.get('message', '')
+                    else:
+                        log_type = "UNKNOWN"
+                        timestamp = "N/A"
+                        level = "N/A"
+                        tag = "N/A"
+                        message = str(log)
+                    
+                    additional_content += f"""
+### {idx}. ⚠️ {log_type}
+- **时间**: {timestamp}
+- **级别**: {level}
+- **标签**: {tag}
+- **内容**: {message}
+"""
+                
+                additional_findings_section = f"""
+## ⚠️ 额外发现的严重问题
+
+> **说明**: 以下问题与您描述的bug可能不直接相关，但在日志中发现了这些严重问题，请注意关注。
+
+{additional_content}
 """
         
         timeline_section = ""
@@ -293,6 +384,7 @@ class ReportGenerationSkill(BaseSkill):
 
 {llm_section}
 {evidence_section}
+{additional_findings_section}
 {timeline_section}
 {aloggrep_section}
 
@@ -339,6 +431,7 @@ class ReportGenerationSkill(BaseSkill):
 """
         
         evidence_section = ""
+        additional_findings_html = ""
         if evidence_data:
             confidence = evidence_data.get('confidence_score', 0)
             confidence_color = "#4caf50" if confidence >= 0.8 else "#ff9800" if confidence >= 0.5 else "#f44336"
@@ -393,6 +486,43 @@ class ReportGenerationSkill(BaseSkill):
         <ol>
             {what_happened_html}
         </ol>
+"""
+            
+            # ============ 新增：额外发现的问题HTML章节 ============
+            additional_findings_html = ""
+            additional_findings = evidence_data.get('additional_findings', [])
+            if additional_findings:
+                additional_logs_html = ""
+                for idx, log in enumerate(additional_findings[:10], 1):
+                    if isinstance(log, dict):
+                        log_type = log.get('type', 'unknown').upper()
+                        timestamp = log.get('timestamp', 'N/A')
+                        level = log.get('level', 'N/A')
+                        tag = log.get('tag', 'N/A')
+                        message = log.get('message', '')
+                    else:
+                        log_type = "UNKNOWN"
+                        timestamp = "N/A"
+                        level = "N/A"
+                        tag = "N/A"
+                        message = str(log)
+                    
+                    additional_logs_html += f"""
+            <div class="log-evidence" style="background: #fff3e0; border-left: 4px solid #ff9800;">
+                <div class="log-header" style="color: #e65100;">⚠️ {idx}. {log_type}</div>
+                <p><strong>时间:</strong> {timestamp}</p>
+                <p><strong>级别:</strong> {level}</p>
+                <p><strong>标签:</strong> {tag}</p>
+                <p><strong>内容:</strong> {message}</p>
+            </div>
+"""
+                
+                additional_findings_html = f"""
+        <h2>⚠️ 额外发现的严重问题</h2>
+        <div style="background: #fff3e0; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <strong>说明:</strong> 以下问题与您描述的bug可能不直接相关，但在日志中发现了这些严重问题，请注意关注。
+        </div>
+        {additional_logs_html}
 """
         
         timeline_section = ""
@@ -470,6 +600,7 @@ class ReportGenerationSkill(BaseSkill):
     
     {llm_section}
     {evidence_section}
+    {additional_findings_html}
     {timeline_section}
     {aloggrep_html_section}
     

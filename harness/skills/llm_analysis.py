@@ -2,6 +2,7 @@
 LLMAnalysisSkill - LLM 驱动的高质量分析技能
 使用关键日志证据进行精准定位和修复建议
 支持 Bug 类型差异化提示词和模板
+支持多轮深度分析模式
 """
 from typing import Dict, Any, Optional
 from .base import BaseSkill, SkillResult, LLMBasedSkill
@@ -40,6 +41,14 @@ class LLMAnalysisSkill(LLMBasedSkill):
             bug_desc = inputs["bug_description"]
             log_analysis = inputs["advanced_log_analysis"]["data"]
             
+            # 检查分析模式
+            analysis_mode = inputs.get("analysis_mode", "standard")
+            
+            # 如果启用多轮分析模式，导入并使用多轮分析
+            if analysis_mode == "multi_round":
+                logger.info("使用多轮深度分析模式")
+                return self._execute_multi_round(bug_desc, log_analysis, inputs)
+            
             # 检查是否使用 Bug 类型差异化优化
             use_bug_type_optimization = self.enable_bug_type_optimization and inputs.get("bug_type_analysis", {}).get("data", {}).get("enabled", False)
             
@@ -58,7 +67,8 @@ class LLMAnalysisSkill(LLMBasedSkill):
                 "analysis": analysis,
                 "has_llm": not self.use_mock,
                 "model": self.model if not self.use_mock else "mock",
-                "bug_type_optimization": use_bug_type_optimization
+                "bug_type_optimization": use_bug_type_optimization,
+                "analysis_mode": analysis_mode
             }
             
             return SkillResult(
@@ -68,6 +78,7 @@ class LLMAnalysisSkill(LLMBasedSkill):
             )
             
         except Exception as e:
+            logger.error(f"LLM 分析失败: {e}", exc_info=True)
             return SkillResult(
                 False,
                 {},
@@ -141,6 +152,46 @@ class LLMAnalysisSkill(LLMBasedSkill):
         else:
             logger.warning("未找到对应分析器，使用标准模式")
             return self._build_prompt(bug_desc, log_analysis), "你是一位资深的Android技术支持专家，擅长日志分析和问题定位。"
+    
+    def _execute_multi_round(self, bug_desc: Dict, log_analysis: Dict, inputs: Dict) -> SkillResult:
+        """执行多轮深度分析"""
+        try:
+            from .multi_round_analysis import MultiRoundAnalysisSkill
+            
+            # 创建多轮分析技能实例
+            multi_round_skill = MultiRoundAnalysisSkill(
+                api_key=self.api_key,
+                base_url=self.base_url,
+                model=self.model
+            )
+            
+            # 构建多轮分析需要的输入
+            multi_round_inputs = {
+                "bug_description": bug_desc,
+                "advanced_log_analysis": {"data": log_analysis}
+            }
+            
+            # 执行多轮分析
+            result = multi_round_skill.execute(multi_round_inputs)
+            
+            if result.success:
+                return SkillResult(
+                    True,
+                    {
+                        "analysis": result.data.get("summary", ""),
+                        "multi_round_analysis": result.data,
+                        "has_llm": not multi_round_skill.use_mock,
+                        "model": multi_round_skill.model if not multi_round_skill.use_mock else "mock",
+                        "analysis_mode": "multi_round"
+                    },
+                    f"多轮分析完成：{result.data.get('total_rounds', 0)} 轮"
+                )
+            else:
+                return SkillResult(False, {}, result.message)
+                
+        except Exception as e:
+            logger.error(f"多轮分析失败: {e}", exc_info=True)
+            return SkillResult(False, {}, f"多轮分析失败: {str(e)}")
     
     def _call_llm(self, prompt: str, system_prompt: str = None) -> str:
         """调用LLM（或模拟），通过基类方法确保Token统计"""
