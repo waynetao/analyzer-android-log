@@ -3,6 +3,7 @@ CrashAnalyzer - Crash类型Bug分析器
 """
 from typing import Dict, Any
 from .base_analyzer import BaseBugAnalyzer, BugType
+from harness.skills.log_format_utils import format_critical_logs
 
 
 class CrashAnalyzer(BaseBugAnalyzer):
@@ -29,17 +30,7 @@ class CrashAnalyzer(BaseBugAnalyzer):
 请始终保持专业、准确、有深度。所有结论必须有日志证据支撑！"""
     
     def get_user_prompt(self, bug_desc: Dict, log_analysis: Dict) -> str:
-        # 格式化关键日志
-        critical_logs_str = ""
-        for idx, log in enumerate(log_analysis.get("critical_logs", []), 1):
-            critical_logs_str += f"""
-【关键日志 {idx}】
-- 类型: {log['type']}
-- 时间: {log['timestamp']}
-- 级别: {log['level']}
-- 标签: {log['tag']}
-- 内容: {log['message']}
-"""
+        critical_logs_str = format_critical_logs(log_analysis.get("critical_logs", []))
         
         prompt = f"""请分析以下 Crash 问题，提供专业的分析报告。
 

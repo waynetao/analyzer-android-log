@@ -59,55 +59,81 @@ class LogParser:
         entries = []
         try:
             with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                last_entry = None
                 for line in f:
-                    entry = self._parse_line(line, file_path)
+                    entry = self._parse_line(line, file_path, last_entry)
                     if entry:
                         entries.append(entry)
+                        last_entry = entry
         except (OSError, UnicodeDecodeError) as e:
             logger.warning(f"Error parsing file {file_path}: {e}")
         return entries
 
-    def _parse_line(self, line: str, file_path: str) -> Optional[LogEntry]:
+    def _parse_line(self, line: str, file_path: str, last_entry: Optional['LogEntry'] = None) -> Optional[LogEntry]:
         line = line.strip()
         if not line:
             return None
 
-        # 尝试匹配常见的Android日志格式
-        # 格式1: 03-29 11:25:32.894092  939  949 I am_crash: [...]
         match1 = re.match(
-            r"(\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d+)\s+(\d+)\s+(\d+)\s+([VDIWEF])\s+(\S+)\s*:\s*(.*)",
+            r"(\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+([VDIWEF])\s+(\S+)\s*:\s*(.*)",
             line,
         )
         if match1:
             return LogEntry(
                 timestamp=match1.group(1),
-                pid=int(match1.group(2)),
-                tid=int(match1.group(3)),
-                level=match1.group(4),
-                tag=match1.group(5),
-                message=match1.group(6),
+                pid=int(match1.group(3)),
+                tid=int(match1.group(4)),
+                level=match1.group(5),
+                tag=match1.group(6),
+                message=match1.group(7),
                 file_path=file_path,
             )
 
-        # 格式2: I/ActivityManager(  939): Displayed ...
-        match2 = re.match(r"([VDIWEF])/([^(]+)\(\s*(\d+)\):\s*(.*)", line)
+        match2 = re.match(
+            r"(\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d+)\s+(\d+)\s+(\d+)\s+([VDIWEF])\s+(\S+)\s*:\s*(.*)",
+            line,
+        )
         if match2:
             return LogEntry(
-                level=match2.group(1),
-                tag=match2.group(2).strip(),
-                pid=int(match2.group(3)) if match2.group(3) else None,
-                message=match2.group(4),
+                timestamp=match2.group(1),
+                pid=int(match2.group(2)),
+                tid=int(match2.group(3)),
+                level=match2.group(4),
+                tag=match2.group(5),
+                message=match2.group(6),
                 file_path=file_path,
             )
 
-        # 格式3: 简单的时间戳 + 消息
-        match3 = re.match(r"(\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s*(.*)", line)
+        match3 = re.match(r"([VDIWEF])/([^(]+)\(\s*(\d+)\):\s*(.*)", line)
         if match3:
             return LogEntry(
-                timestamp=match3.group(1),
-                message=match3.group(2),
+                level=match3.group(1),
+                tag=match3.group(2).strip(),
+                pid=int(match3.group(3)) if match3.group(3) else None,
+                message=match3.group(4),
                 file_path=file_path,
             )
 
-        # 默认情况，只保存消息
-        return LogEntry(message=line, file_path=file_path)
+        match4 = re.match(r"(\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s*(.*)", line)
+        if match4:
+            return LogEntry(
+                timestamp=match4.group(1),
+                message=match4.group(2),
+                file_path=file_path,
+            )
+
+        entry = LogEntry(message=line, file_path=file_path)
+
+        if last_entry:
+            if not entry.timestamp and last_entry.timestamp:
+                entry.timestamp = last_entry.timestamp
+            if not entry.level and last_entry.level:
+                entry.level = last_entry.level
+            if not entry.tag and last_entry.tag:
+                entry.tag = last_entry.tag
+            if not entry.pid and last_entry.pid:
+                entry.pid = last_entry.pid
+            if not entry.tid and last_entry.tid:
+                entry.tid = last_entry.tid
+
+        return entry

@@ -7,6 +7,7 @@ LLMAnalysisSkill - LLM 驱动的高质量分析技能
 from typing import Dict, Any, Optional
 from .base import BaseSkill, SkillResult, LLMBasedSkill
 from harness.skills.bug_type import PromptTemplateManager
+from harness.skills.log_format_utils import format_critical_logs
 import os
 import json
 from datetime import datetime
@@ -41,15 +42,12 @@ class LLMAnalysisSkill(LLMBasedSkill):
             bug_desc = inputs["bug_description"]
             log_analysis = inputs["advanced_log_analysis"]["data"]
             
-            # 检查分析模式
             analysis_mode = inputs.get("analysis_mode", "standard")
             
-            # 如果启用多轮分析模式，导入并使用多轮分析
             if analysis_mode == "multi_round":
                 logger.info("使用多轮深度分析模式")
                 return self._execute_multi_round(bug_desc, log_analysis, inputs)
             
-            # 检查是否使用 Bug 类型差异化优化
             use_bug_type_optimization = self.enable_bug_type_optimization and inputs.get("bug_type_analysis", {}).get("data", {}).get("enabled", False)
             
             if use_bug_type_optimization:
@@ -60,7 +58,6 @@ class LLMAnalysisSkill(LLMBasedSkill):
                 prompt = self._build_prompt(bug_desc, log_analysis)
                 system_prompt = "你是一位资深的Android技术支持专家，擅长日志分析和问题定位。"
             
-            # 获取分析结果
             analysis = self._call_llm(prompt, system_prompt)
             
             result = {
@@ -88,19 +85,8 @@ class LLMAnalysisSkill(LLMBasedSkill):
     def _build_prompt(self, bug_desc: Dict, log_analysis: Dict) -> str:
         """构建详细的分析提示词"""
         
-        # 格式化关键日志
-        critical_logs_str = ""
-        for idx, log in enumerate(log_analysis.get("critical_logs", []), 1):
-            critical_logs_str += f"""
-【关键日志 {idx}】
-- 类型: {log['type']}
-- 时间: {log['timestamp']}
-- 级别: {log['level']}
-- 标签: {log['tag']}
-- 内容: {log['message']}
-"""
+        critical_logs_str = format_critical_logs(log_analysis.get("critical_logs", []))
         
-        # 格式化设备状态
         device_state_str = f"""
 【设备状态】
 - 电池事件: {len(log_analysis.get('device_state', {}).get('battery_levels', []))} 条
@@ -108,7 +94,6 @@ class LLMAnalysisSkill(LLMBasedSkill):
 - 热事件: {len(log_analysis.get('device_state', {}).get('thermal_events', []))} 条
 """
         
-        # 构建完整提示词
         prompt = f"""你是一位资深的Android技术支持专家，擅长日志分析和问题定位。
 
 请基于以下信息，提供精准、高质量的分析报告，所有结论必须有日志证据支撑。
@@ -158,20 +143,17 @@ class LLMAnalysisSkill(LLMBasedSkill):
         try:
             from .multi_round_analysis import MultiRoundAnalysisSkill
             
-            # 创建多轮分析技能实例
             multi_round_skill = MultiRoundAnalysisSkill(
                 api_key=self.api_key,
                 base_url=self.base_url,
                 model=self.model
             )
             
-            # 构建多轮分析需要的输入
             multi_round_inputs = {
                 "bug_description": bug_desc,
                 "advanced_log_analysis": {"data": log_analysis}
             }
             
-            # 执行多轮分析
             result = multi_round_skill.execute(multi_round_inputs)
             
             if result.success:

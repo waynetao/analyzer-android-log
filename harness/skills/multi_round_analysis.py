@@ -5,6 +5,7 @@ MultiRoundAnalysisSkill - 多轮深度分析技能
 from typing import Dict, Any, List
 import re
 from .base import BaseSkill, SkillResult, LLMBasedSkill
+from harness.skills.log_format_utils import format_critical_logs, format_log_entry_safe
 from harness.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -241,7 +242,7 @@ class MultiRoundAnalysisSkill(LLMBasedSkill):
         
         for log in log_analysis.get("critical_logs", [])[:10]:
             if isinstance(log, dict):
-                summary_parts.append(f"[{log.get('timestamp', '')}] {log.get('level', '')} {log.get('tag', '')}: {log.get('message', '')[:150]}")
+                summary_parts.append(format_log_entry_safe(log))
             else:
                 summary_parts.append(str(log)[:150])
         
@@ -249,20 +250,7 @@ class MultiRoundAnalysisSkill(LLMBasedSkill):
     
     def _format_detailed_logs(self, log_analysis: Dict) -> str:
         """格式化详细日志"""
-        detailed_parts = []
-        
-        for idx, log in enumerate(log_analysis.get("critical_logs", [])[:20], 1):
-            if isinstance(log, dict):
-                detailed_parts.append(f"""
-【日志 {idx}】
-- 类型: {log.get('type', 'unknown')}
-- 时间: {log.get('timestamp', 'N/A')}
-- 级别: {log.get('level', 'N/A')}
-- 标签: {log.get('tag', 'N/A')}
-- 内容: {log.get('message', '')}
-""")
-        
-        return "\n".join(detailed_parts) if detailed_parts else "无详细日志"
+        return format_critical_logs(log_analysis.get("critical_logs", []), max_logs=20)
     
     def _extract_key_findings(self, text: str) -> List[str]:
         """提取关键发现"""

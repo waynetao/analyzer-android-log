@@ -13,8 +13,8 @@ class StorageHandler:
     
     def __init__(self, storage_dir: str = None):
         self.storage_dir = storage_dir or BUG_DATA_DIR_STR
-        if not os.path.exists(storage_dir):
-            os.makedirs(storage_dir)
+        if not os.path.exists(self.storage_dir):
+            os.makedirs(self.storage_dir)
 
     def save_bug_data(self, bug_data: StandardizedBugData) -> str:
         """保存bug数据"""

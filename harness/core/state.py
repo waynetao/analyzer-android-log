@@ -197,7 +197,7 @@ class StateManager:
         
         if self.state_dir == OUTPUTS_STATE_DIR_STR:
             self.state_dir = self._workflow_paths.state_dir_str
-            self._ensure_dir()
+            os.makedirs(self.state_dir, exist_ok=True)
         
         logger.info(f"工作流专属目录初始化: {self._workflow_paths.workflow_root}")
         

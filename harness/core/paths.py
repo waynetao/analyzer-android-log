@@ -73,6 +73,7 @@ class WorkflowPaths:
         self.logs_dir = self.workflow_root / "logs"
         self.llm_interactions_dir = self.workflow_root / "llm_interactions"
         self.artifacts_dir = self.workflow_root / "artifacts"
+        self.debug_dir = self.workflow_root / "debug"
         
     def ensure_dirs(self):
         """确保工作流所有目录存在"""
@@ -87,6 +88,7 @@ class WorkflowPaths:
             self.logs_dir,
             self.llm_interactions_dir,
             self.artifacts_dir,
+            self.debug_dir,
         ]
         for dir_path in dirs_to_create:
             dir_path.mkdir(parents=True, exist_ok=True)

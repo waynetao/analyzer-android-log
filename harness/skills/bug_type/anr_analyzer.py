@@ -3,6 +3,7 @@ ANRAnalyzer - ANR类型Bug分析器
 """
 from typing import Dict, Any
 from .base_analyzer import BaseBugAnalyzer, BugType
+from harness.skills.log_format_utils import format_critical_logs
 
 
 class ANRAnalyzer(BaseBugAnalyzer):
@@ -35,14 +36,7 @@ ANR (Application Not Responding) 通常是因为主线程被阻塞：
 请始终保持专业、准确、有深度！"""
     
     def get_user_prompt(self, bug_desc: Dict, log_analysis: Dict) -> str:
-        critical_logs_str = ""
-        for idx, log in enumerate(log_analysis.get("critical_logs", []), 1):
-            critical_logs_str += f"""
-【关键日志 {idx}】
-- 类型: {log['type']}
-- 时间: {log['timestamp']}
-- 内容: {log['message']}
-"""
+        critical_logs_str = format_critical_logs(log_analysis.get("critical_logs", []))
         
         prompt = f"""请分析以下 ANR 问题，提供专业的分析报告。
 

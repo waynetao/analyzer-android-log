@@ -40,6 +40,7 @@ from harness.skills.knowledge_retrieval import KnowledgeRetrievalSkill
 from harness.skills.bug_type_analysis_skill import BugTypeAnalysisSkill
 from harness.skills.case_library_skill import CaseLibrarySkill
 from harness.skills.log_file_selector import LogFileSelectorSkill
+from harness.core.stage_debugger import StageDebugger
 
 
 class UnifiedAgent:
@@ -328,6 +329,14 @@ def main():
   python scripts/cli.py skill --list
   python scripts/cli.py skill --name log_extraction --log app.log
   
+  # 单阶段调试（独立运行指定阶段，查看输入输出）
+  python scripts/cli.py debug --list-stages
+  python scripts/cli.py debug --stage log_extraction --log app.log --bug bug.txt
+  python scripts/cli.py debug --stage advanced_log_analysis --log app.log --bug bug.txt
+  python scripts/cli.py debug --stage llm_analysis --log app.log --bug bug.txt
+  python scripts/cli.py debug --stage advanced_log_analysis --workflow-id <ID> --bug bug.txt
+  python scripts/cli.py debug --show-summary advanced_log_analysis
+  
   # 查看状态
   python scripts/cli.py status --workflow-id <ID>
   python scripts/cli.py list
@@ -347,6 +356,7 @@ def main():
     _add_list_subparser(subparsers)
     _add_search_subparser(subparsers)
     _add_info_subparser(subparsers)
+    _add_debug_subparser(subparsers)
     
     args = parser.parse_args()
     
@@ -435,6 +445,114 @@ def _add_info_subparser(subparsers):
     info_parser.add_argument("--workflow-id", "-w", required=True, help="工作流ID")
 
 
+def _add_debug_subparser(subparsers):
+    debug_parser = subparsers.add_parser("debug", help="单阶段调试（独立运行指定阶段，查看输入输出）")
+    debug_parser.add_argument("--stage", "-s",
+                              help="要调试的阶段名称（如 log_extraction, advanced_log_analysis, llm_analysis, log_file_selector）")
+    debug_parser.add_argument("--bug", "-b", help="Bug描述文本或文件")
+    debug_parser.add_argument("--log", "-l", help="日志文件/目录路径")
+    debug_parser.add_argument("--workflow-id", "-w", help="已有工作流ID（复用中间数据）")
+    debug_parser.add_argument("--input-json", help="阶段输入JSON文件或字符串")
+    debug_parser.add_argument("--list-stages", action="store_true", help="列出所有可调试的阶段")
+    debug_parser.add_argument("--show-summary", help="显示指定阶段的调试摘要")
+    debug_parser.add_argument("--api-key", help="OpenAI API Key")
+    debug_parser.add_argument("--base-url", help="OpenAI API Base URL")
+    debug_parser.add_argument("--model", default=None, help="使用的LLM模型")
+
+
+def _handle_debug(args, agent: UnifiedAgent):
+    """处理 debug 命令"""
+    if args.list_stages:
+        print("\n" + "=" * 60)
+        print("🔧 可调试的阶段")
+        print("=" * 60)
+        available_skills = agent.get_available_skills()
+        for name in available_skills:
+            print(f"  - {name}")
+        print("\n使用方法: python scripts/cli.py debug --stage <stage_name> --bug <bug> --log <log>")
+        return
+    
+    if args.show_summary:
+        debugger = StageDebugger(workflow_id=args.workflow_id) if args.workflow_id else StageDebugger()
+        summary = debugger.get_stage_summary(args.show_summary)
+        if summary:
+            print(summary)
+        else:
+            print(f"未找到阶段 '{args.show_summary}' 的调试摘要")
+        return
+    
+    stage_name = args.stage
+    
+    if not stage_name:
+        print("⚠️ 请指定 --stage <stage_name> 或使用 --list-stages 查看可用阶段")
+        return
+    
+    if stage_name not in agent.orchestrator.skills:
+        print(f"\n❌ 阶段 '{stage_name}' 不存在")
+        print(f"可用阶段: {', '.join(agent.get_available_skills())}")
+        return
+    
+    inputs = {}
+    if args.log:
+        inputs["log_path"] = args.log
+    if args.bug:
+        inputs["bug_description"] = agent._parse_bug_description(load_bug_text(args.bug))
+    if args.input_json:
+        if os.path.exists(args.input_json):
+            with open(args.input_json, 'r', encoding='utf-8') as f:
+                inputs.update(json.load(f))
+        else:
+            inputs.update(json.loads(args.input_json))
+    
+    debugger = StageDebugger(workflow_id=args.workflow_id) if args.workflow_id else StageDebugger()
+    
+    if args.workflow_id:
+        prev_outputs = agent.orchestrator.load_workflow(args.workflow_id)
+        if prev_outputs and "outputs" in prev_outputs:
+            for key, val in prev_outputs["outputs"].items():
+                if key not in inputs:
+                    inputs[key] = val
+    
+    print(f"\n🔧 调试阶段: {stage_name}")
+    print(f"📁 调试目录: {debugger.debug_dir}")
+    print(f"📥 输入参数: {list(inputs.keys())}")
+    print()
+    
+    skill = agent.orchestrator.skills[stage_name]
+    result = debugger.execute_stage(skill, inputs, stage_name=stage_name)
+    
+    print("\n" + "=" * 60)
+    print(f"📊 调试结果: {stage_name}")
+    print("=" * 60)
+    print(f"状态: {'✅ 成功' if result.get('success') else '❌ 失败'}")
+    print(f"消息: {result.get('message', '')}")
+    
+    debug_info = result.get("debug_info", {})
+    if debug_info:
+        print(f"耗时: {debug_info.get('duration_ms', 0):.2f}ms")
+    
+    output_data = result.get("data", {})
+    if output_data:
+        print(f"\n📤 输出概要:")
+        if isinstance(output_data, dict):
+            for key, val in output_data.items():
+                if isinstance(val, list):
+                    print(f"  - {key}: {len(val)} 条")
+                elif isinstance(val, dict):
+                    print(f"  - {key}: dict ({len(val)} keys)")
+                elif isinstance(val, str):
+                    preview = val[:100] + "..." if len(val) > 100 else val
+                    print(f"  - {key}: {preview}")
+                else:
+                    print(f"  - {key}: {val}")
+    
+    stage_dir = os.path.join(debugger.debug_dir, stage_name)
+    print(f"\n💾 调试数据已保存:")
+    print(f"  - 输入: {stage_dir}/input.json")
+    print(f"  - 输出: {stage_dir}/output.json")
+    print(f"  - 摘要: {stage_dir}/summary.md")
+
+
 def _dispatch_command(args, agent: UnifiedAgent):
     handlers = {
         "full": _handle_full,
@@ -448,6 +566,7 @@ def _dispatch_command(args, agent: UnifiedAgent):
         "list": _handle_list,
         "search": _handle_search,
         "info": _handle_info,
+        "debug": _handle_debug,
     }
     handler = handlers.get(args.command)
     if handler:

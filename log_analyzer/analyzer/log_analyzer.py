@@ -1,3 +1,4 @@
+import re
 from typing import List, Dict, Any
 from dataclasses import dataclass, field
 from log_analyzer.parser.log_parser import LogEntry
@@ -28,109 +29,108 @@ class LogAnalyzer:
         msg_lower = entry.message.lower()
         tag_lower = entry.tag.lower() if entry.tag else ""
 
-        # 检查所有条件，不是互斥的
-        added = False
-        
-        # 检查崩溃
         if self._is_crash(entry, msg_lower, tag_lower):
             result.crashes.append(entry)
-            added = True
-        
-        # 检查ANR
+            return
+
         if self._is_anr(entry, msg_lower, tag_lower):
             result.anrs.append(entry)
-            added = True
-        
-        # 检查低内存
+            return
+
         if self._is_low_memory(entry, msg_lower, tag_lower):
             result.low_memory.append(entry)
-            added = True
-        
-        # 检查异常
-        if self._is_exception(entry, msg_lower):
+            return
+
+        if self._is_exception(entry, msg_lower, tag_lower):
             result.exceptions.append(entry)
-            added = True
-        
-        # 检查启动事件
+            return
+
         if self._is_boot_event(entry, msg_lower, tag_lower):
             result.boot_events.append(entry)
-        
-        # 检查电源事件
+            return
+
         if self._is_power_event(entry, msg_lower, tag_lower):
             result.power_events.append(entry)
-        
-        # 检查其他问题（如果还没有被归类到其他任何类别）
-        if not added and self._is_other_issue(entry, msg_lower, tag_lower):
+            return
+
+        if self._is_other_issue(entry, msg_lower, tag_lower):
             result.other_issues.append(entry)
 
     def _is_crash(self, entry: LogEntry, msg_lower: str, tag_lower: str) -> bool:
         crash_keywords = [
-            "crash",
-            "fatal",
-            "am_crash",
-            "AndroidRuntime",
-            "FATAL EXCEPTION",
+            r"\bcrash\b",
+            r"\bfatal\b",
+            r"\bam_crash\b",
+            r"\bAndroidRuntime\b",
+            r"\bFATAL EXCEPTION\b",
         ]
         return any(
-            keyword.lower() in msg_lower or keyword.lower() in tag_lower
-            for keyword in crash_keywords
+            re.search(kw, msg_lower) or re.search(kw, tag_lower)
+            for kw in crash_keywords
         )
 
     def _is_anr(self, entry: LogEntry, msg_lower: str, tag_lower: str) -> bool:
-        anr_keywords = ["anr", "am_anr", "not responding"]
+        anr_keywords = [r"\banr\b", r"\bam_anr\b", r"\bnot responding\b"]
         return any(
-            keyword.lower() in msg_lower or keyword.lower() in tag_lower
-            for keyword in anr_keywords
+            re.search(kw, msg_lower) or re.search(kw, tag_lower)
+            for kw in anr_keywords
         )
 
     def _is_low_memory(self, entry: LogEntry, msg_lower: str, tag_lower: str) -> bool:
         low_memory_keywords = [
-            "low_memory",
-            "am_low_memory",
-            "oom",
-            "out of memory",
-            "kill",
+            r"\blow_memory\b",
+            r"\bam_low_memory\b",
+            r"\boom\b",
+            r"\bout of memory\b",
+            r"\bkilled\b",
         ]
         return any(
-            keyword.lower() in msg_lower or keyword.lower() in tag_lower
-            for keyword in low_memory_keywords
+            re.search(kw, msg_lower) or re.search(kw, tag_lower)
+            for kw in low_memory_keywords
         )
 
-    def _is_exception(self, entry: LogEntry, msg_lower: str) -> bool:
-        exception_keywords = ["exception", "error", "nullpointer", "arrayindex"]
-        return any(keyword.lower() in msg_lower for keyword in exception_keywords)
+    def _is_exception(self, entry: LogEntry, msg_lower: str, tag_lower: str) -> bool:
+        exception_keywords = [
+            r"\bexception\b",
+            r"\bnullpointerexception\b",
+            r"\barrayindexoutofboundsexception\b",
+            r"\bclasscastexception\b",
+            r"\billegalstateexception\b",
+            r"\billegalargumentexception\b",
+            r"\bsecurityexception\b",
+            r"\bruntimeexception\b",
+        ]
+        return any(
+            re.search(kw, msg_lower) or re.search(kw, tag_lower)
+            for kw in exception_keywords
+        )
 
     def _is_boot_event(self, entry: LogEntry, msg_lower: str, tag_lower: str) -> bool:
         boot_keywords = [
-            "boot",
-            "bootstat",
-            "start",
-            "init",
-            "zygote",
-            "system_server",
+            r"\bbootstat\b",
+            r"\bboot_completed\b",
+            r"\bzygote\b",
+            r"\bsystem_server\b",
         ]
         return any(
-            keyword.lower() in msg_lower or keyword.lower() in tag_lower
-            for keyword in boot_keywords
+            re.search(kw, msg_lower) or re.search(kw, tag_lower)
+            for kw in boot_keywords
         )
 
     def _is_power_event(self, entry: LogEntry, msg_lower: str, tag_lower: str) -> bool:
         power_keywords = [
-            "power",
-            "shutdown",
-            "reboot",
-            "battery",
-            "sleep",
-            "wake",
+            r"\bshutdown\b",
+            r"\breboot\b",
+            r"\bpower_off\b",
+            r"\bwake_lock\b",
         ]
         return any(
-            keyword.lower() in msg_lower or keyword.lower() in tag_lower
-            for keyword in power_keywords
+            re.search(kw, msg_lower) or re.search(kw, tag_lower)
+            for kw in power_keywords
         )
 
     def _is_other_issue(self, entry: LogEntry, msg_lower: str, tag_lower: str) -> bool:
-        # 检查严重级别的日志
-        if entry.level in ["E", "F", "W"]:  # Error, Fatal, Warning
+        if entry.level in ["E", "F"]:
             return True
         return False
 
@@ -141,31 +141,26 @@ class LogAnalyzer:
         report.append("=" * 60)
         report.append("")
 
-        # 崩溃
         report.append(f"【崩溃信息】({len(result.crashes)})")
-        for entry in result.crashes[:20]:  # 只显示前20个
+        for entry in result.crashes[:20]:
             report.append(self._format_entry(entry))
         report.append("")
 
-        # ANR
         report.append(f"【ANR信息】({len(result.anrs)})")
         for entry in result.anrs[:20]:
             report.append(self._format_entry(entry))
         report.append("")
 
-        # 低内存
         report.append(f"【低内存信息】({len(result.low_memory)})")
         for entry in result.low_memory[:20]:
             report.append(self._format_entry(entry))
         report.append("")
 
-        # 异常
         report.append(f"【异常信息】({len(result.exceptions)})")
         for entry in result.exceptions[:20]:
             report.append(self._format_entry(entry))
         report.append("")
 
-        # 其他问题
         report.append(f"【其他问题】({len(result.other_issues)})")
         for entry in result.other_issues[:30]:
             report.append(self._format_entry(entry))
@@ -184,5 +179,5 @@ class LogAnalyzer:
             parts.append(f"[{entry.tag}]")
         if entry.pid:
             parts.append(f"(PID:{entry.pid})")
-        parts.append(entry.message[:200])  # 只显示前200个字符
+        parts.append(entry.message[:200])
         return " ".join(parts)
