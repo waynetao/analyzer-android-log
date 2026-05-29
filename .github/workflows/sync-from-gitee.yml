@@ -1,9 +1,6 @@
 name: Sync from Gitee to GitHub
 
 on:
-  # 定时任务：每天 UTC 时间 18 点（对应北京时间凌晨 2 点）自动去 Gitee 抓取一次
-  schedule:
-    - cron: '0 18 * * *'
   # 允许在 GitHub Actions 页面手动点击 "Run workflow" 触发
   workflow_dispatch:
 
